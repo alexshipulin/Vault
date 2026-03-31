@@ -1,0 +1,65 @@
+{
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Features/Vault/Presentation/VaultHistoryView.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryView.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryView.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryView.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryView.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryView.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Features/Vault/Presentation/VaultHistoryViewModel.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryViewModel.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryViewModel.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryViewModel.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryViewModel.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultHistoryViewModel.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Features/Vault/Presentation/VaultRoute.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultRoute.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultRoute.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultRoute.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultRoute.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultRoute.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Shared/DesignSystem/VaultComponents.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultComponents.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultComponents.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultComponents.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultComponents.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultComponents.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Shared/DesignSystem/VaultTheme.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultTheme.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultTheme.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultTheme.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultTheme.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultTheme.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Shared/Presentation/PresentationSupport.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PresentationSupport.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PresentationSupport.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PresentationSupport.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PresentationSupport.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PresentationSupport.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Shared/Presentation/VaultActivitySheet.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultActivitySheet.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultActivitySheet.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultActivitySheet.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultActivitySheet.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultActivitySheet.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Shared/Presentation/VaultScanMode.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultScanMode.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultScanMode.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultScanMode.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultScanMode.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultScanMode.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Shared/Presentation/VaultUserPreferences.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultUserPreferences.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultUserPreferences.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultUserPreferences.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultUserPreferences.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/VaultUserPreferences.swiftdeps"
+  }
+}

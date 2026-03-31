@@ -1,0 +1,813 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0185635AE2F70C1F042C7C47 /* VaultComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08DD7BA92C166220934BD0EB /* VaultComponents.swift */; };
+		01EA587904C5A214EE2C6C90 /* ItemMarketTrendProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E98D4ED767A8F0C71EE9C1 /* ItemMarketTrendProvider.swift */; };
+		05FE1D192E96155BDB844315 /* CollectibleItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8619BF059878D115732FB2C /* CollectibleItem.swift */; };
+		0F58E2DC96AC7DA3DD7B96FF /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9F8E4FEB61BBFC6B9788E4D /* ProcessingView.swift */; };
+		1084CD73FB4984451508CBF4 /* ScanRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCB8FA08C2A0E0D37D602968 /* ScanRoute.swift */; };
+		1E45C324F0BF51FCB20F1657 /* VaultUserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B61D15393A17330E8740C5 /* VaultUserPreferences.swift */; };
+		2649AA050D3C2D84C8C3A483 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01322692595C547F56ADE75C /* HomeView.swift */; };
+		26A4F70A0DA598DA6C57F939 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C9CF929220828749851DF2D /* CameraPreviewView.swift */; };
+		291490C998943309451068EE /* MockDomainFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18FAFCD0D3AD7F109EA0C612 /* MockDomainFactory.swift */; };
+		2BB6FD988516C163B934E901 /* PriceRepositoryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFADEE6FBBF1ED76747E7DAB /* PriceRepositoryProtocol.swift */; };
+		2BD7E70A5EBBE751883751D8 /* HomeRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59B394DA2350622E1D04645 /* HomeRoute.swift */; };
+		2F2CD3F767D1105116551BA7 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 63DD3DEF9E0DA531C29BC1EA /* Localizable.strings */; };
+		33E65C087383D5C2641AA5F2 /* CameraPreviewSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F40CAA68A5ACD6CEA25E112 /* CameraPreviewSource.swift */; };
+		37E4DB3B3BA2CD971E4957A0 /* CameraScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B49771771F7F537F4302DAE4 /* CameraScanView.swift */; };
+		3B881C31DD337BBAEF7B85C6 /* PresentationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8F29C8B83D746E8ACB085F6 /* PresentationSupport.swift */; };
+		3C2E2912E231CB479A09339C /* AIChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A1892A35591835EECC54CF /* AIChatView.swift */; };
+		426059272FEC1EA639C778FE /* ScanProcessingPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C32FFD959E7D07AAFB8D32 /* ScanProcessingPipeline.swift */; };
+		42E4C2D4FFADF20132A81DA4 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97E9F9A59A48C7CB5FE9DE2 /* AppCoordinator.swift */; };
+		42F630075F9A89757A51B9DB /* LocalStorageSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EDE44820F2E1FAD287029F /* LocalStorageSupport.swift */; };
+		43D3340CC3FF7AFD12F6E1D0 /* SubscriptionServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05245F9E88132FD9C3748343 /* SubscriptionServiceProtocol.swift */; };
+		4A85FE98C26868A123104084 /* PlaceholderViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF31E6387C9E586435D46C6 /* PlaceholderViews.swift */; };
+		4D40C670D626B72BD1E8271E /* VaultHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66C515C61CB85B295109806E /* VaultHistoryView.swift */; };
+		539EF2CC8913CC5890707AD1 /* VaultHistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F0272B007E2CAF94683960B /* VaultHistoryViewModel.swift */; };
+		67A859C124DF3593BB0C373F /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021F3407EA98B993B3A9F563 /* AppRouter.swift */; };
+		68B27E46C2BB627E70C8FBF7 /* MockVisionPreprocessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8066B8CC7735C847B58B40EA /* MockVisionPreprocessor.swift */; };
+		6B5BAA2E78FA6208FEAB8C4C /* ProfileSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3A34C709E406AC14A0D435 /* ProfileSettingsViewModel.swift */; };
+		6F278759C12540151BA620E2 /* ScanResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49C481590943C776CE42F15E /* ScanResult.swift */; };
+		717272B96811F2E4B783BCD3 /* MockScanResultFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5585A08D10A5936AA040878 /* MockScanResultFactory.swift */; };
+		73A231C705181E4371BC272F /* AVFoundationCameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FBC7F4C682A2CE757038AA /* AVFoundationCameraService.swift */; };
+		768D13B13A7AC2C5C6C06EDD /* VaultScanMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E950A2E66A3EE4F432A2D4 /* VaultScanMode.swift */; };
+		7785AF60407767CFE921C6EF /* AIChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8BB9960C2BF70B58B0B2C48 /* AIChatViewModel.swift */; };
+		7BC00F2AFBABF09EA3869F5B /* DependencySupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BC459CDB347EB138F461602 /* DependencySupport.swift */; };
+		7F56355402E90109EF1516F6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0C9C406C8DD35BD707685C /* MainTabView.swift */; };
+		83B558E67B26A080D34460EE /* MockSubscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036A4C98CB515508A6FF5D77 /* MockSubscriptionService.swift */; };
+		840D4A6AA276B6C2C02064F8 /* MockPriceRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05B0670D1B9E8016DFDE51A /* MockPriceRepository.swift */; };
+		8422528DF9B9DE87DDD26115 /* ScanResultViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5F8F555BAD96F9FDA4E7FFB /* ScanResultViewModel.swift */; };
+		8496DD229DF64BEEDAC77BD0 /* CameraScanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4250757094B615C0C3F1CA12 /* CameraScanViewModel.swift */; };
+		84CD31B2A120E510C99A0693 /* ItemDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE70A099A8F6A7B8FB71B9F1 /* ItemDetailsView.swift */; };
+		8787B118A00BC904FBF2786D /* ProfileDataExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD565B8A1E278C3D3F6BE9E4 /* ProfileDataExporter.swift */; };
+		97FBE909DA9F3AD8EEC8E3FA /* ProfileSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6EEB291C230598512CCA5B /* ProfileSettingsView.swift */; };
+		9874D763076C872E27591B5C /* TemporaryScanSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC59C60A0E65EF48A36D6310 /* TemporaryScanSession.swift */; };
+		9C4A575B24B62D7034AFFA47 /* VaultScopeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99742D08FD2BE3C6B7536A5 /* VaultScopeApp.swift */; };
+		9FE8A624C1253283955B25FA /* ScanRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 799834384CC2D7593DCBFE81 /* ScanRootView.swift */; };
+		A4E719B2DA65FB2EF7781636 /* ConditionGrade.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1993C0D5B0950CF81638DEB3 /* ConditionGrade.swift */; };
+		A6BDBF718E417C55D1F9B4A3 /* MockItemChatResponseGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DAE7ECD80E4FCFFE138B4D /* MockItemChatResponseGenerator.swift */; };
+		A7BBC08CA735141828AB0330 /* MockCameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BEBBFF548E280DF38AFAD2 /* MockCameraService.swift */; };
+		AD921F0BB5D4A3815B94632A /* TemporaryScanSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA78441E665897E9B11AFB9 /* TemporaryScanSessionStore.swift */; };
+		AE59DC9387AE968A85EDFF8E /* PersistentCollectionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F593305D350DC5A9E82EA70 /* PersistentCollectionRepository.swift */; };
+		AEC32C3C06117710F7C23DE7 /* ScannerServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35A1CAE6E6CB3CD269E01F /* ScannerServiceProtocol.swift */; };
+		B45C64E9F67DB064ED5151F9 /* AppLaunchConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9920551672EFD4AF5EADCEF /* AppLaunchConfiguration.swift */; };
+		B46378A809784131A8D0ADA1 /* ScanImageThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB359E3F401012AC0D4ADE72 /* ScanImageThumbnailView.swift */; };
+		B55816D23E79D735B7761C0C /* MockCollectionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06543FBB1579365CBD22E799 /* MockCollectionRepository.swift */; };
+		B8090C567FE5D73950EDB993 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED5645FAF5C9AB2F23641710 /* KeychainService.swift */; };
+		BAE32B443D78A712536A44C9 /* VaultRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0D860F0243E1C445C4B81B /* VaultRoute.swift */; };
+		C4312BAFB229856436143901 /* CollectibleCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 677C39B11BA23A1D967ED151 /* CollectibleCategory.swift */; };
+		CE5FF95EC86293E3C8AA6CD6 /* ProcessingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12A1891F8F9480EC2ED76D22 /* ProcessingViewModel.swift */; };
+		CEA1FA7E596B77C8E01597B5 /* MockAIChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F212BFD3592E20D980D175 /* MockAIChatService.swift */; };
+		D0CB7C00FAE52DABA69F28F5 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14BED9D889CED2EEAE3DA84C /* APIClient.swift */; };
+		D3910D940DC76BE861FC6B35 /* AIServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BF79AACC2D7EAAB5AE6A0AA /* AIServiceProtocol.swift */; };
+		D3998EFBDBE74536B289C5ED /* CollectionRepositoryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938D5F8C46DE893B4C5ACE74 /* CollectionRepositoryProtocol.swift */; };
+		D941B778A4E8297FD4621398 /* MockAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4405B1EBBFB3011E1A059E /* MockAIService.swift */; };
+		DD5B539C7FB5AD7C92217425 /* DependencyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C700051D5265DB6A48A6B7A3 /* DependencyContainer.swift */; };
+		E12F4D8310AE99458D22C33B /* ScanResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D9466753C9DEE213979242 /* ScanResultView.swift */; };
+		E1CFE8E5747B76AA7A44398D /* VaultActivitySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969B44EED087AEC03BEB9FE3 /* VaultActivitySheet.swift */; };
+		E2410AF99E39731D730E9F77 /* ItemDetailsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89186C7D1CEC075F50E6436 /* ItemDetailsViewModel.swift */; };
+		E26E3302BBE769ED65FDABDC /* ScanRootViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FFD5B26F2CAA215B0565593 /* ScanRootViewModel.swift */; };
+		E2CBDD48B3E7CD4E10C4C244 /* ProfileRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB88D1FBF12F0F3FA9D688C2 /* ProfileRoute.swift */; };
+		E94EB07382CAE03FD4792E73 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6A4C1DCFB8D8EB6E082274 /* AppError.swift */; };
+		E9A712E689395A3D4E9FE761 /* PortfolioUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63C9F5930C28128A5B4C976 /* PortfolioUseCase.swift */; };
+		EC63B90E9EE44810561E59D3 /* ItemChatSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D00CD4A9050C69C66EC18E2 /* ItemChatSessionStore.swift */; };
+		F192C4BB641FC066F6382C31 /* PriceData.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA84E8D232911B485D822E57 /* PriceData.swift */; };
+		F4451D4414DB0B986F9673CD /* VaultTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD69C7C10E1B3C7835221EDD /* VaultTheme.swift */; };
+		F5214C5E1F879BEE7DF1AD78 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8586453FE73FEDAF1D694E73 /* HomeViewModel.swift */; };
+		FFFF87EBC0AA368300B79B16 /* ScanItemUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10BF73D3648145611ACA59F7 /* ScanItemUseCase.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		01322692595C547F56ADE75C /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeView.swift; path = VaultScope/Features/Home/Presentation/HomeView.swift; sourceTree = SOURCE_ROOT; };
+		021F3407EA98B993B3A9F563 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppRouter.swift; path = VaultScope/App/AppRouter.swift; sourceTree = SOURCE_ROOT; };
+		036A4C98CB515508A6FF5D77 /* MockSubscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockSubscriptionService.swift; path = VaultScope/Core/Domain/Mocks/MockSubscriptionService.swift; sourceTree = SOURCE_ROOT; };
+		05245F9E88132FD9C3748343 /* SubscriptionServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubscriptionServiceProtocol.swift; path = VaultScope/Core/Domain/Protocols/SubscriptionServiceProtocol.swift; sourceTree = SOURCE_ROOT; };
+		06543FBB1579365CBD22E799 /* MockCollectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockCollectionRepository.swift; path = VaultScope/Core/Domain/Mocks/MockCollectionRepository.swift; sourceTree = SOURCE_ROOT; };
+		08DD7BA92C166220934BD0EB /* VaultComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultComponents.swift; path = VaultScope/Shared/DesignSystem/VaultComponents.swift; sourceTree = SOURCE_ROOT; };
+		0C9CF929220828749851DF2D /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraPreviewView.swift; path = VaultScope/Features/Scan/Presentation/CameraPreviewView.swift; sourceTree = SOURCE_ROOT; };
+		0F3A34C709E406AC14A0D435 /* ProfileSettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileSettingsViewModel.swift; path = VaultScope/Features/Profile/Presentation/ProfileSettingsViewModel.swift; sourceTree = SOURCE_ROOT; };
+		10BF73D3648145611ACA59F7 /* ScanItemUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanItemUseCase.swift; path = VaultScope/Core/Domain/UseCases/ScanItemUseCase.swift; sourceTree = SOURCE_ROOT; };
+		12A1891F8F9480EC2ED76D22 /* ProcessingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProcessingViewModel.swift; path = VaultScope/Features/Scan/Presentation/ProcessingViewModel.swift; sourceTree = SOURCE_ROOT; };
+		14BED9D889CED2EEAE3DA84C /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = APIClient.swift; path = VaultScope/Core/Infrastructure/Networking/APIClient.swift; sourceTree = SOURCE_ROOT; };
+		18FAFCD0D3AD7F109EA0C612 /* MockDomainFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockDomainFactory.swift; path = VaultScope/Core/Domain/Mocks/MockDomainFactory.swift; sourceTree = SOURCE_ROOT; };
+		1993C0D5B0950CF81638DEB3 /* ConditionGrade.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConditionGrade.swift; path = VaultScope/Core/Domain/Entities/ConditionGrade.swift; sourceTree = SOURCE_ROOT; };
+		1F0272B007E2CAF94683960B /* VaultHistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultHistoryViewModel.swift; path = VaultScope/Features/Vault/Presentation/VaultHistoryViewModel.swift; sourceTree = SOURCE_ROOT; };
+		2A4405B1EBBFB3011E1A059E /* MockAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockAIService.swift; path = VaultScope/Core/Domain/Mocks/MockAIService.swift; sourceTree = SOURCE_ROOT; };
+		2BF79AACC2D7EAAB5AE6A0AA /* AIServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIServiceProtocol.swift; path = VaultScope/Core/Domain/Protocols/AIServiceProtocol.swift; sourceTree = SOURCE_ROOT; };
+		2C0D860F0243E1C445C4B81B /* VaultRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultRoute.swift; path = VaultScope/Features/Vault/Presentation/VaultRoute.swift; sourceTree = SOURCE_ROOT; };
+		33E98D4ED767A8F0C71EE9C1 /* ItemMarketTrendProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ItemMarketTrendProvider.swift; path = VaultScope/Features/ItemDetails/Application/ItemMarketTrendProvider.swift; sourceTree = SOURCE_ROOT; };
+		3FFD5B26F2CAA215B0565593 /* ScanRootViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanRootViewModel.swift; path = VaultScope/Features/Scan/Presentation/ScanRootViewModel.swift; sourceTree = SOURCE_ROOT; };
+		4250757094B615C0C3F1CA12 /* CameraScanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraScanViewModel.swift; path = VaultScope/Features/Scan/Presentation/CameraScanViewModel.swift; sourceTree = SOURCE_ROOT; };
+		49C481590943C776CE42F15E /* ScanResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanResult.swift; path = VaultScope/Core/Domain/Entities/ScanResult.swift; sourceTree = SOURCE_ROOT; };
+		4D0C9C406C8DD35BD707685C /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MainTabView.swift; path = VaultScope/App/MainTabView.swift; sourceTree = SOURCE_ROOT; };
+		52C32FFD959E7D07AAFB8D32 /* ScanProcessingPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanProcessingPipeline.swift; path = VaultScope/Features/Scan/Application/ScanProcessingPipeline.swift; sourceTree = SOURCE_ROOT; };
+		5BC459CDB347EB138F461602 /* DependencySupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DependencySupport.swift; path = VaultScope/App/DependencySupport.swift; sourceTree = SOURCE_ROOT; };
+		66C515C61CB85B295109806E /* VaultHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultHistoryView.swift; path = VaultScope/Features/Vault/Presentation/VaultHistoryView.swift; sourceTree = SOURCE_ROOT; };
+		677C39B11BA23A1D967ED151 /* CollectibleCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectibleCategory.swift; path = VaultScope/Core/Domain/Entities/CollectibleCategory.swift; sourceTree = SOURCE_ROOT; };
+		6F593305D350DC5A9E82EA70 /* PersistentCollectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PersistentCollectionRepository.swift; path = VaultScope/Core/Infrastructure/Storage/PersistentCollectionRepository.swift; sourceTree = SOURCE_ROOT; };
+		799834384CC2D7593DCBFE81 /* ScanRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanRootView.swift; path = VaultScope/Features/Scan/Presentation/ScanRootView.swift; sourceTree = SOURCE_ROOT; };
+		7D6EEB291C230598512CCA5B /* ProfileSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileSettingsView.swift; path = VaultScope/Features/Profile/Presentation/ProfileSettingsView.swift; sourceTree = SOURCE_ROOT; };
+		7F40CAA68A5ACD6CEA25E112 /* CameraPreviewSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraPreviewSource.swift; path = VaultScope/Core/Infrastructure/Camera/CameraPreviewSource.swift; sourceTree = SOURCE_ROOT; };
+		8066B8CC7735C847B58B40EA /* MockVisionPreprocessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockVisionPreprocessor.swift; path = VaultScope/Core/Domain/Mocks/MockVisionPreprocessor.swift; sourceTree = SOURCE_ROOT; };
+		84337AD8D27FCD69AF2C4FC2 /* VaultScope.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VaultScope.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8586453FE73FEDAF1D694E73 /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeViewModel.swift; path = VaultScope/Features/Home/Presentation/HomeViewModel.swift; sourceTree = SOURCE_ROOT; };
+		87EDE44820F2E1FAD287029F /* LocalStorageSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocalStorageSupport.swift; path = VaultScope/Core/Infrastructure/Storage/LocalStorageSupport.swift; sourceTree = SOURCE_ROOT; };
+		8D00CD4A9050C69C66EC18E2 /* ItemChatSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ItemChatSessionStore.swift; path = VaultScope/Features/AIChat/Application/ItemChatSessionStore.swift; sourceTree = SOURCE_ROOT; };
+		92DAE7ECD80E4FCFFE138B4D /* MockItemChatResponseGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockItemChatResponseGenerator.swift; path = VaultScope/Features/AIChat/Application/MockItemChatResponseGenerator.swift; sourceTree = SOURCE_ROOT; };
+		938D5F8C46DE893B4C5ACE74 /* CollectionRepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectionRepositoryProtocol.swift; path = VaultScope/Core/Domain/Protocols/CollectionRepositoryProtocol.swift; sourceTree = SOURCE_ROOT; };
+		969B44EED087AEC03BEB9FE3 /* VaultActivitySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultActivitySheet.swift; path = VaultScope/Shared/Presentation/VaultActivitySheet.swift; sourceTree = SOURCE_ROOT; };
+		96B61D15393A17330E8740C5 /* VaultUserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultUserPreferences.swift; path = VaultScope/Shared/Presentation/VaultUserPreferences.swift; sourceTree = SOURCE_ROOT; };
+		A5585A08D10A5936AA040878 /* MockScanResultFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockScanResultFactory.swift; path = VaultScope/Features/Scan/Application/MockScanResultFactory.swift; sourceTree = SOURCE_ROOT; };
+		AD69C7C10E1B3C7835221EDD /* VaultTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultTheme.swift; path = VaultScope/Shared/DesignSystem/VaultTheme.swift; sourceTree = SOURCE_ROOT; };
+		B25654830CFC12C09C29E21C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = VaultScope/Resources/Localization/en.lproj/Localizable.strings; sourceTree = SOURCE_ROOT; };
+		B49771771F7F537F4302DAE4 /* CameraScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraScanView.swift; path = VaultScope/Features/Scan/Presentation/CameraScanView.swift; sourceTree = SOURCE_ROOT; };
+		B59B394DA2350622E1D04645 /* HomeRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeRoute.swift; path = VaultScope/Features/Home/Presentation/HomeRoute.swift; sourceTree = SOURCE_ROOT; };
+		B8F29C8B83D746E8ACB085F6 /* PresentationSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PresentationSupport.swift; path = VaultScope/Shared/Presentation/PresentationSupport.swift; sourceTree = SOURCE_ROOT; };
+		B97E9F9A59A48C7CB5FE9DE2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppCoordinator.swift; path = VaultScope/App/AppCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		BB88D1FBF12F0F3FA9D688C2 /* ProfileRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileRoute.swift; path = VaultScope/Features/Profile/Presentation/ProfileRoute.swift; sourceTree = SOURCE_ROOT; };
+		BCB8FA08C2A0E0D37D602968 /* ScanRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanRoute.swift; path = VaultScope/Features/Scan/Presentation/ScanRoute.swift; sourceTree = SOURCE_ROOT; };
+		C1FBC7F4C682A2CE757038AA /* AVFoundationCameraService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AVFoundationCameraService.swift; path = VaultScope/Core/Infrastructure/Camera/AVFoundationCameraService.swift; sourceTree = SOURCE_ROOT; };
+		C700051D5265DB6A48A6B7A3 /* DependencyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DependencyContainer.swift; path = VaultScope/App/DependencyContainer.swift; sourceTree = SOURCE_ROOT; };
+		C9920551672EFD4AF5EADCEF /* AppLaunchConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLaunchConfiguration.swift; path = VaultScope/App/AppLaunchConfiguration.swift; sourceTree = SOURCE_ROOT; };
+		C9F8E4FEB61BBFC6B9788E4D /* ProcessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProcessingView.swift; path = VaultScope/Features/Scan/Presentation/ProcessingView.swift; sourceTree = SOURCE_ROOT; };
+		CA84E8D232911B485D822E57 /* PriceData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PriceData.swift; path = VaultScope/Core/Domain/Entities/PriceData.swift; sourceTree = SOURCE_ROOT; };
+		CD565B8A1E278C3D3F6BE9E4 /* ProfileDataExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileDataExporter.swift; path = VaultScope/Features/Profile/Application/ProfileDataExporter.swift; sourceTree = SOURCE_ROOT; };
+		CFA78441E665897E9B11AFB9 /* TemporaryScanSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TemporaryScanSessionStore.swift; path = VaultScope/Features/Scan/Application/TemporaryScanSessionStore.swift; sourceTree = SOURCE_ROOT; };
+		D05B0670D1B9E8016DFDE51A /* MockPriceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockPriceRepository.swift; path = VaultScope/Core/Domain/Mocks/MockPriceRepository.swift; sourceTree = SOURCE_ROOT; };
+		D1E950A2E66A3EE4F432A2D4 /* VaultScanMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultScanMode.swift; path = VaultScope/Shared/Presentation/VaultScanMode.swift; sourceTree = SOURCE_ROOT; };
+		D8619BF059878D115732FB2C /* CollectibleItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectibleItem.swift; path = VaultScope/Core/Domain/Entities/CollectibleItem.swift; sourceTree = SOURCE_ROOT; };
+		D89186C7D1CEC075F50E6436 /* ItemDetailsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ItemDetailsViewModel.swift; path = VaultScope/Features/ItemDetails/Presentation/ItemDetailsViewModel.swift; sourceTree = SOURCE_ROOT; };
+		D99742D08FD2BE3C6B7536A5 /* VaultScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VaultScopeApp.swift; path = VaultScope/App/VaultScopeApp.swift; sourceTree = SOURCE_ROOT; };
+		DBF31E6387C9E586435D46C6 /* PlaceholderViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlaceholderViews.swift; path = VaultScope/App/PlaceholderViews.swift; sourceTree = SOURCE_ROOT; };
+		DC59C60A0E65EF48A36D6310 /* TemporaryScanSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TemporaryScanSession.swift; path = VaultScope/Features/Scan/Presentation/TemporaryScanSession.swift; sourceTree = SOURCE_ROOT; };
+		DFADEE6FBBF1ED76747E7DAB /* PriceRepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PriceRepositoryProtocol.swift; path = VaultScope/Core/Domain/Protocols/PriceRepositoryProtocol.swift; sourceTree = SOURCE_ROOT; };
+		E3A1892A35591835EECC54CF /* AIChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIChatView.swift; path = VaultScope/Features/AIChat/Presentation/AIChatView.swift; sourceTree = SOURCE_ROOT; };
+		E5D9466753C9DEE213979242 /* ScanResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanResultView.swift; path = VaultScope/Features/Scan/Presentation/ScanResultView.swift; sourceTree = SOURCE_ROOT; };
+		E7F212BFD3592E20D980D175 /* MockAIChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockAIChatService.swift; path = VaultScope/Core/Domain/Mocks/MockAIChatService.swift; sourceTree = SOURCE_ROOT; };
+		E9BEBBFF548E280DF38AFAD2 /* MockCameraService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MockCameraService.swift; path = VaultScope/Core/Domain/Mocks/MockCameraService.swift; sourceTree = SOURCE_ROOT; };
+		ED5645FAF5C9AB2F23641710 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KeychainService.swift; path = VaultScope/Core/Infrastructure/Security/KeychainService.swift; sourceTree = SOURCE_ROOT; };
+		F5F8F555BAD96F9FDA4E7FFB /* ScanResultViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanResultViewModel.swift; path = VaultScope/Features/Scan/Presentation/ScanResultViewModel.swift; sourceTree = SOURCE_ROOT; };
+		F63C9F5930C28128A5B4C976 /* PortfolioUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PortfolioUseCase.swift; path = VaultScope/Core/Domain/UseCases/PortfolioUseCase.swift; sourceTree = SOURCE_ROOT; };
+		F8BB9960C2BF70B58B0B2C48 /* AIChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIChatViewModel.swift; path = VaultScope/Features/AIChat/Presentation/AIChatViewModel.swift; sourceTree = SOURCE_ROOT; };
+		FA6A4C1DCFB8D8EB6E082274 /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppError.swift; path = VaultScope/Core/Domain/Entities/AppError.swift; sourceTree = SOURCE_ROOT; };
+		FB359E3F401012AC0D4ADE72 /* ScanImageThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanImageThumbnailView.swift; path = VaultScope/Features/Scan/Presentation/ScanImageThumbnailView.swift; sourceTree = SOURCE_ROOT; };
+		FB35A1CAE6E6CB3CD269E01F /* ScannerServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScannerServiceProtocol.swift; path = VaultScope/Core/Domain/Protocols/ScannerServiceProtocol.swift; sourceTree = SOURCE_ROOT; };
+		FE70A099A8F6A7B8FB71B9F1 /* ItemDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ItemDetailsView.swift; path = VaultScope/Features/ItemDetails/Presentation/ItemDetailsView.swift; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		424153ED3CD079DB4DB459AF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		11BE604A804BF5F2AB7FBDAF /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				DB5687E20F57FAEF0D3D94A2 /* Camera */,
+				F2A5D7A34C09E4E3E3447E54 /* Networking */,
+				EAECFB18CDBB741FA97E637B /* Security */,
+				F957B291D8D582E6C27CE868 /* Storage */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		1975D6C1E5F36358AE07E98A /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				08DD7BA92C166220934BD0EB /* VaultComponents.swift */,
+				AD69C7C10E1B3C7835221EDD /* VaultTheme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		2753DFF8555AB1F2FD236D04 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				FE70A099A8F6A7B8FB71B9F1 /* ItemDetailsView.swift */,
+				D89186C7D1CEC075F50E6436 /* ItemDetailsViewModel.swift */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		2C3D5A120C0EACCBF1BCDC52 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				DEA31B0652DD4934EFB74396 /* Application */,
+				E07AA1360DA47E74E2B612B0 /* Presentation */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+		2F5324B1E99FCEE94BA18FD3 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				B59B394DA2350622E1D04645 /* HomeRoute.swift */,
+				01322692595C547F56ADE75C /* HomeView.swift */,
+				8586453FE73FEDAF1D694E73 /* HomeViewModel.swift */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		35D315DEBBF45F223B169A61 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				C1E2C2764E62608F459677CA /* Domain */,
+				11BE604A804BF5F2AB7FBDAF /* Infrastructure */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		38531DC12F4289D7D592D8CE /* Application */ = {
+			isa = PBXGroup;
+			children = (
+				8D00CD4A9050C69C66EC18E2 /* ItemChatSessionStore.swift */,
+				92DAE7ECD80E4FCFFE138B4D /* MockItemChatResponseGenerator.swift */,
+			);
+			path = Application;
+			sourceTree = "<group>";
+		};
+		49A9229066AA70BE9E9C5BA2 /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				63DD3DEF9E0DA531C29BC1EA /* Localizable.strings */,
+			);
+			path = Localization;
+			sourceTree = "<group>";
+		};
+		50F986FC4EB6BC19D76D6B0A /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				2F5324B1E99FCEE94BA18FD3 /* Presentation */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		518DA81DB9B99529C0C0AEBE = {
+			isa = PBXGroup;
+			children = (
+				B4AE6896E1D6FFA0714BCF58 /* VaultScope */,
+				547D009064F7C3F13BEF3460 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		547D009064F7C3F13BEF3460 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				84337AD8D27FCD69AF2C4FC2 /* VaultScope.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5C5DBBA98F3015D06C25818D /* Application */ = {
+			isa = PBXGroup;
+			children = (
+				A5585A08D10A5936AA040878 /* MockScanResultFactory.swift */,
+				52C32FFD959E7D07AAFB8D32 /* ScanProcessingPipeline.swift */,
+				CFA78441E665897E9B11AFB9 /* TemporaryScanSessionStore.swift */,
+			);
+			path = Application;
+			sourceTree = "<group>";
+		};
+		7E012D06267CFB96FD27B1B2 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				B8F29C8B83D746E8ACB085F6 /* PresentationSupport.swift */,
+				969B44EED087AEC03BEB9FE3 /* VaultActivitySheet.swift */,
+				D1E950A2E66A3EE4F432A2D4 /* VaultScanMode.swift */,
+				96B61D15393A17330E8740C5 /* VaultUserPreferences.swift */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		80784CED51F98F95415D1616 /* Entities */ = {
+			isa = PBXGroup;
+			children = (
+				FA6A4C1DCFB8D8EB6E082274 /* AppError.swift */,
+				677C39B11BA23A1D967ED151 /* CollectibleCategory.swift */,
+				D8619BF059878D115732FB2C /* CollectibleItem.swift */,
+				1993C0D5B0950CF81638DEB3 /* ConditionGrade.swift */,
+				CA84E8D232911B485D822E57 /* PriceData.swift */,
+				49C481590943C776CE42F15E /* ScanResult.swift */,
+			);
+			path = Entities;
+			sourceTree = "<group>";
+		};
+		887A6F90336FF23D95C3914B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				49A9229066AA70BE9E9C5BA2 /* Localization */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		9003A1C479A35D787F8A93A2 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				0C9CF929220828749851DF2D /* CameraPreviewView.swift */,
+				B49771771F7F537F4302DAE4 /* CameraScanView.swift */,
+				4250757094B615C0C3F1CA12 /* CameraScanViewModel.swift */,
+				C9F8E4FEB61BBFC6B9788E4D /* ProcessingView.swift */,
+				12A1891F8F9480EC2ED76D22 /* ProcessingViewModel.swift */,
+				FB359E3F401012AC0D4ADE72 /* ScanImageThumbnailView.swift */,
+				E5D9466753C9DEE213979242 /* ScanResultView.swift */,
+				F5F8F555BAD96F9FDA4E7FFB /* ScanResultViewModel.swift */,
+				799834384CC2D7593DCBFE81 /* ScanRootView.swift */,
+				3FFD5B26F2CAA215B0565593 /* ScanRootViewModel.swift */,
+				BCB8FA08C2A0E0D37D602968 /* ScanRoute.swift */,
+				DC59C60A0E65EF48A36D6310 /* TemporaryScanSession.swift */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		911B50D9D4299F814037ED1A /* Protocols */ = {
+			isa = PBXGroup;
+			children = (
+				2BF79AACC2D7EAAB5AE6A0AA /* AIServiceProtocol.swift */,
+				938D5F8C46DE893B4C5ACE74 /* CollectionRepositoryProtocol.swift */,
+				DFADEE6FBBF1ED76747E7DAB /* PriceRepositoryProtocol.swift */,
+				FB35A1CAE6E6CB3CD269E01F /* ScannerServiceProtocol.swift */,
+				05245F9E88132FD9C3748343 /* SubscriptionServiceProtocol.swift */,
+			);
+			path = Protocols;
+			sourceTree = "<group>";
+		};
+		96ECCA03DF2A28E00D274DD8 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				E3A1892A35591835EECC54CF /* AIChatView.swift */,
+				F8BB9960C2BF70B58B0B2C48 /* AIChatViewModel.swift */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		984D844B917CCD4C29DE2A97 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				B782871B4E77F817C7740A19 /* AIChat */,
+				50F986FC4EB6BC19D76D6B0A /* Home */,
+				D6002C959CD50739C01B867E /* ItemDetails */,
+				2C3D5A120C0EACCBF1BCDC52 /* Profile */,
+				D8AE3DDA97357447A715001B /* Scan */,
+				D37621194C1FE89AA823660A /* Vault */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		B10FE72DBE8FE05E12E84F94 /* Application */ = {
+			isa = PBXGroup;
+			children = (
+				33E98D4ED767A8F0C71EE9C1 /* ItemMarketTrendProvider.swift */,
+			);
+			path = Application;
+			sourceTree = "<group>";
+		};
+		B221CD24972374395284EA71 /* UseCases */ = {
+			isa = PBXGroup;
+			children = (
+				F63C9F5930C28128A5B4C976 /* PortfolioUseCase.swift */,
+				10BF73D3648145611ACA59F7 /* ScanItemUseCase.swift */,
+			);
+			path = UseCases;
+			sourceTree = "<group>";
+		};
+		B46A6AFB1DC88CE23F6E63F1 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				1975D6C1E5F36358AE07E98A /* DesignSystem */,
+				7E012D06267CFB96FD27B1B2 /* Presentation */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		B4AE6896E1D6FFA0714BCF58 /* VaultScope */ = {
+			isa = PBXGroup;
+			children = (
+				D1D0524B025E57AFFF263442 /* App */,
+				35D315DEBBF45F223B169A61 /* Core */,
+				984D844B917CCD4C29DE2A97 /* Features */,
+				887A6F90336FF23D95C3914B /* Resources */,
+				B46A6AFB1DC88CE23F6E63F1 /* Shared */,
+			);
+			path = VaultScope;
+			sourceTree = "<group>";
+		};
+		B782871B4E77F817C7740A19 /* AIChat */ = {
+			isa = PBXGroup;
+			children = (
+				38531DC12F4289D7D592D8CE /* Application */,
+				96ECCA03DF2A28E00D274DD8 /* Presentation */,
+			);
+			path = AIChat;
+			sourceTree = "<group>";
+		};
+		C1E2C2764E62608F459677CA /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				80784CED51F98F95415D1616 /* Entities */,
+				F90DFE2343E61824AF5462CB /* Mocks */,
+				911B50D9D4299F814037ED1A /* Protocols */,
+				B221CD24972374395284EA71 /* UseCases */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		D1D0524B025E57AFFF263442 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B97E9F9A59A48C7CB5FE9DE2 /* AppCoordinator.swift */,
+				C9920551672EFD4AF5EADCEF /* AppLaunchConfiguration.swift */,
+				021F3407EA98B993B3A9F563 /* AppRouter.swift */,
+				C700051D5265DB6A48A6B7A3 /* DependencyContainer.swift */,
+				5BC459CDB347EB138F461602 /* DependencySupport.swift */,
+				4D0C9C406C8DD35BD707685C /* MainTabView.swift */,
+				DBF31E6387C9E586435D46C6 /* PlaceholderViews.swift */,
+				D99742D08FD2BE3C6B7536A5 /* VaultScopeApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		D37621194C1FE89AA823660A /* Vault */ = {
+			isa = PBXGroup;
+			children = (
+				FBBE826CC4FE6AB920777812 /* Presentation */,
+			);
+			path = Vault;
+			sourceTree = "<group>";
+		};
+		D6002C959CD50739C01B867E /* ItemDetails */ = {
+			isa = PBXGroup;
+			children = (
+				B10FE72DBE8FE05E12E84F94 /* Application */,
+				2753DFF8555AB1F2FD236D04 /* Presentation */,
+			);
+			path = ItemDetails;
+			sourceTree = "<group>";
+		};
+		D8AE3DDA97357447A715001B /* Scan */ = {
+			isa = PBXGroup;
+			children = (
+				5C5DBBA98F3015D06C25818D /* Application */,
+				9003A1C479A35D787F8A93A2 /* Presentation */,
+			);
+			path = Scan;
+			sourceTree = "<group>";
+		};
+		DB5687E20F57FAEF0D3D94A2 /* Camera */ = {
+			isa = PBXGroup;
+			children = (
+				C1FBC7F4C682A2CE757038AA /* AVFoundationCameraService.swift */,
+				7F40CAA68A5ACD6CEA25E112 /* CameraPreviewSource.swift */,
+			);
+			path = Camera;
+			sourceTree = "<group>";
+		};
+		DEA31B0652DD4934EFB74396 /* Application */ = {
+			isa = PBXGroup;
+			children = (
+				CD565B8A1E278C3D3F6BE9E4 /* ProfileDataExporter.swift */,
+			);
+			path = Application;
+			sourceTree = "<group>";
+		};
+		E07AA1360DA47E74E2B612B0 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				BB88D1FBF12F0F3FA9D688C2 /* ProfileRoute.swift */,
+				7D6EEB291C230598512CCA5B /* ProfileSettingsView.swift */,
+				0F3A34C709E406AC14A0D435 /* ProfileSettingsViewModel.swift */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		EAECFB18CDBB741FA97E637B /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				ED5645FAF5C9AB2F23641710 /* KeychainService.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		F2A5D7A34C09E4E3E3447E54 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				14BED9D889CED2EEAE3DA84C /* APIClient.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		F90DFE2343E61824AF5462CB /* Mocks */ = {
+			isa = PBXGroup;
+			children = (
+				E7F212BFD3592E20D980D175 /* MockAIChatService.swift */,
+				2A4405B1EBBFB3011E1A059E /* MockAIService.swift */,
+				E9BEBBFF548E280DF38AFAD2 /* MockCameraService.swift */,
+				06543FBB1579365CBD22E799 /* MockCollectionRepository.swift */,
+				18FAFCD0D3AD7F109EA0C612 /* MockDomainFactory.swift */,
+				D05B0670D1B9E8016DFDE51A /* MockPriceRepository.swift */,
+				036A4C98CB515508A6FF5D77 /* MockSubscriptionService.swift */,
+				8066B8CC7735C847B58B40EA /* MockVisionPreprocessor.swift */,
+			);
+			path = Mocks;
+			sourceTree = "<group>";
+		};
+		F957B291D8D582E6C27CE868 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				87EDE44820F2E1FAD287029F /* LocalStorageSupport.swift */,
+				6F593305D350DC5A9E82EA70 /* PersistentCollectionRepository.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		FBBE826CC4FE6AB920777812 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				66C515C61CB85B295109806E /* VaultHistoryView.swift */,
+				1F0272B007E2CAF94683960B /* VaultHistoryViewModel.swift */,
+				2C0D860F0243E1C445C4B81B /* VaultRoute.swift */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E3435DDA2687639586BF0B70 /* VaultScope */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1C9E302A2D5FE01BD0E20588 /* Build configuration list for PBXNativeTarget "VaultScope" */;
+			buildPhases = (
+				7A70D71C385290AF96BF1031 /* Sources */,
+				424153ED3CD079DB4DB459AF /* Frameworks */,
+				285BB1C1430063331E9F5DD0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VaultScope;
+			productName = VaultScope;
+			productReference = 84337AD8D27FCD69AF2C4FC2 /* VaultScope.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AFC74C69B8FAF538E614821C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					E3435DDA2687639586BF0B70 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+				};
+			};
+			buildConfigurationList = 479141CF4F7E78536D4D69BF /* Build configuration list for PBXProject "VaultScope" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 518DA81DB9B99529C0C0AEBE;
+			productRefGroup = 547D009064F7C3F13BEF3460 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E3435DDA2687639586BF0B70 /* VaultScope */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		285BB1C1430063331E9F5DD0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2F2CD3F767D1105116551BA7 /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7A70D71C385290AF96BF1031 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				42E4C2D4FFADF20132A81DA4 /* AppCoordinator.swift in Sources */,
+				B45C64E9F67DB064ED5151F9 /* AppLaunchConfiguration.swift in Sources */,
+				67A859C124DF3593BB0C373F /* AppRouter.swift in Sources */,
+				DD5B539C7FB5AD7C92217425 /* DependencyContainer.swift in Sources */,
+				7BC00F2AFBABF09EA3869F5B /* DependencySupport.swift in Sources */,
+				7F56355402E90109EF1516F6 /* MainTabView.swift in Sources */,
+				4A85FE98C26868A123104084 /* PlaceholderViews.swift in Sources */,
+				9C4A575B24B62D7034AFFA47 /* VaultScopeApp.swift in Sources */,
+				E94EB07382CAE03FD4792E73 /* AppError.swift in Sources */,
+				C4312BAFB229856436143901 /* CollectibleCategory.swift in Sources */,
+				05FE1D192E96155BDB844315 /* CollectibleItem.swift in Sources */,
+				A4E719B2DA65FB2EF7781636 /* ConditionGrade.swift in Sources */,
+				F192C4BB641FC066F6382C31 /* PriceData.swift in Sources */,
+				6F278759C12540151BA620E2 /* ScanResult.swift in Sources */,
+				CEA1FA7E596B77C8E01597B5 /* MockAIChatService.swift in Sources */,
+				D941B778A4E8297FD4621398 /* MockAIService.swift in Sources */,
+				A7BBC08CA735141828AB0330 /* MockCameraService.swift in Sources */,
+				B55816D23E79D735B7761C0C /* MockCollectionRepository.swift in Sources */,
+				291490C998943309451068EE /* MockDomainFactory.swift in Sources */,
+				840D4A6AA276B6C2C02064F8 /* MockPriceRepository.swift in Sources */,
+				83B558E67B26A080D34460EE /* MockSubscriptionService.swift in Sources */,
+				68B27E46C2BB627E70C8FBF7 /* MockVisionPreprocessor.swift in Sources */,
+				D3910D940DC76BE861FC6B35 /* AIServiceProtocol.swift in Sources */,
+				D3998EFBDBE74536B289C5ED /* CollectionRepositoryProtocol.swift in Sources */,
+				2BB6FD988516C163B934E901 /* PriceRepositoryProtocol.swift in Sources */,
+				AEC32C3C06117710F7C23DE7 /* ScannerServiceProtocol.swift in Sources */,
+				43D3340CC3FF7AFD12F6E1D0 /* SubscriptionServiceProtocol.swift in Sources */,
+				E9A712E689395A3D4E9FE761 /* PortfolioUseCase.swift in Sources */,
+				FFFF87EBC0AA368300B79B16 /* ScanItemUseCase.swift in Sources */,
+				73A231C705181E4371BC272F /* AVFoundationCameraService.swift in Sources */,
+				33E65C087383D5C2641AA5F2 /* CameraPreviewSource.swift in Sources */,
+				D0CB7C00FAE52DABA69F28F5 /* APIClient.swift in Sources */,
+				B8090C567FE5D73950EDB993 /* KeychainService.swift in Sources */,
+				42F630075F9A89757A51B9DB /* LocalStorageSupport.swift in Sources */,
+				AE59DC9387AE968A85EDFF8E /* PersistentCollectionRepository.swift in Sources */,
+				EC63B90E9EE44810561E59D3 /* ItemChatSessionStore.swift in Sources */,
+				A6BDBF718E417C55D1F9B4A3 /* MockItemChatResponseGenerator.swift in Sources */,
+				3C2E2912E231CB479A09339C /* AIChatView.swift in Sources */,
+				7785AF60407767CFE921C6EF /* AIChatViewModel.swift in Sources */,
+				2BD7E70A5EBBE751883751D8 /* HomeRoute.swift in Sources */,
+				2649AA050D3C2D84C8C3A483 /* HomeView.swift in Sources */,
+				F5214C5E1F879BEE7DF1AD78 /* HomeViewModel.swift in Sources */,
+				01EA587904C5A214EE2C6C90 /* ItemMarketTrendProvider.swift in Sources */,
+				84CD31B2A120E510C99A0693 /* ItemDetailsView.swift in Sources */,
+				E2410AF99E39731D730E9F77 /* ItemDetailsViewModel.swift in Sources */,
+				8787B118A00BC904FBF2786D /* ProfileDataExporter.swift in Sources */,
+				E2CBDD48B3E7CD4E10C4C244 /* ProfileRoute.swift in Sources */,
+				97FBE909DA9F3AD8EEC8E3FA /* ProfileSettingsView.swift in Sources */,
+				6B5BAA2E78FA6208FEAB8C4C /* ProfileSettingsViewModel.swift in Sources */,
+				717272B96811F2E4B783BCD3 /* MockScanResultFactory.swift in Sources */,
+				426059272FEC1EA639C778FE /* ScanProcessingPipeline.swift in Sources */,
+				AD921F0BB5D4A3815B94632A /* TemporaryScanSessionStore.swift in Sources */,
+				26A4F70A0DA598DA6C57F939 /* CameraPreviewView.swift in Sources */,
+				37E4DB3B3BA2CD971E4957A0 /* CameraScanView.swift in Sources */,
+				8496DD229DF64BEEDAC77BD0 /* CameraScanViewModel.swift in Sources */,
+				0F58E2DC96AC7DA3DD7B96FF /* ProcessingView.swift in Sources */,
+				CE5FF95EC86293E3C8AA6CD6 /* ProcessingViewModel.swift in Sources */,
+				B46378A809784131A8D0ADA1 /* ScanImageThumbnailView.swift in Sources */,
+				E12F4D8310AE99458D22C33B /* ScanResultView.swift in Sources */,
+				8422528DF9B9DE87DDD26115 /* ScanResultViewModel.swift in Sources */,
+				9FE8A624C1253283955B25FA /* ScanRootView.swift in Sources */,
+				E26E3302BBE769ED65FDABDC /* ScanRootViewModel.swift in Sources */,
+				1084CD73FB4984451508CBF4 /* ScanRoute.swift in Sources */,
+				9874D763076C872E27591B5C /* TemporaryScanSession.swift in Sources */,
+				4D40C670D626B72BD1E8271E /* VaultHistoryView.swift in Sources */,
+				539EF2CC8913CC5890707AD1 /* VaultHistoryViewModel.swift in Sources */,
+				BAE32B443D78A712536A44C9 /* VaultRoute.swift in Sources */,
+				0185635AE2F70C1F042C7C47 /* VaultComponents.swift in Sources */,
+				F4451D4414DB0B986F9673CD /* VaultTheme.swift in Sources */,
+				3B881C31DD337BBAEF7B85C6 /* PresentationSupport.swift in Sources */,
+				E1CFE8E5747B76AA7A44398D /* VaultActivitySheet.swift in Sources */,
+				768D13B13A7AC2C5C6C06EDD /* VaultScanMode.swift in Sources */,
+				1E45C324F0BF51FCB20F1657 /* VaultUserPreferences.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		63DD3DEF9E0DA531C29BC1EA /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B25654830CFC12C09C29E21C /* en */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		92E165A9035A603BE73D2E62 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEVELOPMENT_TEAM = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E1D3BBA94590957B0374D6E9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEVELOPMENT_TEAM = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		F22D2FFCC45240A8FF5EBE4A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TLT9XB9AJ5;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = VaultScope;
+				INFOPLIST_KEY_NSCameraUsageDescription = "VaultScope needs camera access to capture collectibles during scanning.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexshipulin.VaultScope;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FE4F802C632EAD717BA35062 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TLT9XB9AJ5;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = VaultScope;
+				INFOPLIST_KEY_NSCameraUsageDescription = "VaultScope needs camera access to capture collectibles during scanning.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexshipulin.VaultScope;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1C9E302A2D5FE01BD0E20588 /* Build configuration list for PBXNativeTarget "VaultScope" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F22D2FFCC45240A8FF5EBE4A /* Debug */,
+				FE4F802C632EAD717BA35062 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		479141CF4F7E78536D4D69BF /* Build configuration list for PBXProject "VaultScope" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92E165A9035A603BE73D2E62 /* Debug */,
+				E1D3BBA94590957B0374D6E9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AFC74C69B8FAF538E614821C /* Project object */;
+}

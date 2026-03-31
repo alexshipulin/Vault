@@ -1,0 +1,65 @@
+{
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Entities/CollectibleItem.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/CollectibleItem.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/CollectibleItem.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/CollectibleItem.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/CollectibleItem.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/CollectibleItem.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Entities/ConditionGrade.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ConditionGrade.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ConditionGrade.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ConditionGrade.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ConditionGrade.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ConditionGrade.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Entities/PriceData.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PriceData.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PriceData.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PriceData.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PriceData.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/PriceData.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Entities/ScanResult.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ScanResult.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ScanResult.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ScanResult.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ScanResult.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/ScanResult.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Mocks/MockAIChatService.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIChatService.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIChatService.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIChatService.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIChatService.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIChatService.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Mocks/MockAIService.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIService.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIService.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIService.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIService.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockAIService.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Mocks/MockCameraService.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCameraService.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCameraService.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCameraService.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCameraService.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCameraService.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Mocks/MockCollectionRepository.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCollectionRepository.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCollectionRepository.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCollectionRepository.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCollectionRepository.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockCollectionRepository.swiftdeps"
+  },
+  "/Users/alexshipulin/Desktop/Vault/VaultScope/Core/Domain/Mocks/MockDomainFactory.swift" : {
+    "const-values" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockDomainFactory.swiftconstvalues",
+    "dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockDomainFactory.d",
+    "diagnostics" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockDomainFactory.dia",
+    "object" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockDomainFactory.o",
+    "swift-dependencies" : "/Users/alexshipulin/Desktop/Vault/.deriveddata/Build/Intermediates.noindex/VaultScope.build/Debug-iphoneos/VaultScope.build/Objects-normal/arm64/MockDomainFactory.swiftdeps"
+  }
+}

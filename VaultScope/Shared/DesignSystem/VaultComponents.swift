@@ -7,17 +7,20 @@ struct VaultHeaderAction {
     let title: String?
     let systemImage: String?
     let accessibilityLabel: String
+    let accessibilityIdentifier: String?
     let action: () -> Void
 
     init(
         title: String? = nil,
         systemImage: String? = nil,
         accessibilityLabel: String,
+        accessibilityIdentifier: String? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.systemImage = systemImage
         self.accessibilityLabel = accessibilityLabel
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.action = action
     }
 }
@@ -28,17 +31,20 @@ struct VaultHeaderAction {
 struct VaultScreenHeader: View {
     let title: String
     let subtitle: String?
+    let titleAccessibilityIdentifier: String?
     let leadingAction: VaultHeaderAction?
     let trailingAction: VaultHeaderAction?
 
     init(
         title: String,
         subtitle: String? = nil,
+        titleAccessibilityIdentifier: String? = nil,
         leadingAction: VaultHeaderAction? = nil,
         trailingAction: VaultHeaderAction? = nil
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.titleAccessibilityIdentifier = titleAccessibilityIdentifier
         self.leadingAction = leadingAction
         self.trailingAction = trailingAction
     }
@@ -58,6 +64,7 @@ struct VaultScreenHeader: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity)
+                    .vaultAccessibilityID(titleAccessibilityIdentifier)
             }
 
             if let subtitle, subtitle.isEmpty == false {
@@ -90,6 +97,7 @@ struct VaultScreenHeader: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(action.accessibilityLabel)
+            .vaultAccessibilityID(action.accessibilityIdentifier)
         } else {
             Color.clear
                 .frame(width: 44, height: 32)
@@ -115,6 +123,17 @@ struct VaultSegmentedOption<Value: Hashable>: Identifiable {
 struct VaultSegmentedModeSwitch<Value: Hashable>: View {
     let options: [VaultSegmentedOption<Value>]
     @Binding var selection: Value
+    let accessibilityIdentifier: ((Value) -> String?)?
+
+    init(
+        options: [VaultSegmentedOption<Value>],
+        selection: Binding<Value>,
+        accessibilityIdentifier: ((Value) -> String?)? = nil
+    ) {
+        self.options = options
+        self._selection = selection
+        self.accessibilityIdentifier = accessibilityIdentifier
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -132,6 +151,7 @@ struct VaultSegmentedModeSwitch<Value: Hashable>: View {
                         .background(selection == option.value ? VaultColor.fillSelected : VaultColor.surface)
                 }
                 .buttonStyle(.plain)
+                .vaultAccessibilityID(accessibilityIdentifier?(option.value))
 
                 if index < options.count - 1 {
                     Rectangle()
@@ -150,6 +170,17 @@ struct VaultSegmentedModeSwitch<Value: Hashable>: View {
 struct VaultSearchField: View {
     let placeholder: String
     @Binding var text: String
+    let accessibilityIdentifier: String?
+
+    init(
+        placeholder: String,
+        text: Binding<String>,
+        accessibilityIdentifier: String? = nil
+    ) {
+        self.placeholder = placeholder
+        self._text = text
+        self.accessibilityIdentifier = accessibilityIdentifier
+    }
 
     var body: some View {
         HStack(spacing: VaultSpacing.sm) {
@@ -168,6 +199,7 @@ struct VaultSearchField: View {
             .foregroundStyle(VaultColor.foreground)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
+            .vaultAccessibilityID(accessibilityIdentifier)
 
             if text.isEmpty == false {
                 Button {
@@ -427,6 +459,13 @@ enum VaultProgressState {
 struct VaultProgressRow: View {
     let title: String
     let state: VaultProgressState
+    let accessibilityIdentifier: String?
+
+    init(title: String, state: VaultProgressState, accessibilityIdentifier: String? = nil) {
+        self.title = title
+        self.state = state
+        self.accessibilityIdentifier = accessibilityIdentifier
+    }
 
     var body: some View {
         HStack(spacing: VaultSpacing.md) {
@@ -447,6 +486,7 @@ struct VaultProgressRow: View {
                 .tracking(0.8)
                 .foregroundStyle(VaultColor.foregroundSubtle)
         }
+        .vaultAccessibilityID(accessibilityIdentifier)
     }
 
     private var indicatorColor: Color {
@@ -490,11 +530,18 @@ struct VaultStickyActionBar<Content: View>: View {
 struct VaultChipButton: View {
     let title: String
     let isSelected: Bool
+    let accessibilityIdentifier: String?
     let action: () -> Void
 
-    init(title: String, isSelected: Bool = false, action: @escaping () -> Void) {
+    init(
+        title: String,
+        isSelected: Bool = false,
+        accessibilityIdentifier: String? = nil,
+        action: @escaping () -> Void
+    ) {
         self.title = title
         self.isSelected = isSelected
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.action = action
     }
 
@@ -512,6 +559,7 @@ struct VaultChipButton: View {
                 )
         }
         .buttonStyle(.plain)
+        .vaultAccessibilityID(accessibilityIdentifier)
     }
 }
 
@@ -574,17 +622,20 @@ struct VaultEmptyStateBlock: View {
     let title: String
     let message: String
     let actionTitle: String?
+    let accessibilityIdentifier: String?
     let action: (() -> Void)?
 
     init(
         title: String,
         message: String,
         actionTitle: String? = nil,
+        accessibilityIdentifier: String? = nil,
         action: (() -> Void)? = nil
     ) {
         self.title = title
         self.message = message
         self.actionTitle = actionTitle
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.action = action
     }
 
@@ -606,6 +657,7 @@ struct VaultEmptyStateBlock: View {
         .padding(VaultSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(Rectangle().stroke(VaultColor.borderDefault, lineWidth: VaultBorder.hairline))
+        .vaultAccessibilityID(accessibilityIdentifier)
     }
 }
 

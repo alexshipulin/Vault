@@ -13,9 +13,12 @@ struct HomeView: View {
     var body: some View {
         VaultScopeScreen(
             titleKey: "feature.home.title",
+            screenAccessibilityIdentifier: "home.screen",
+            titleAccessibilityIdentifier: "home.title",
             trailingAction: VaultHeaderAction(
                 systemImage: "person.crop.square",
-                accessibilityLabel: vsLocalized("feature.home.profile_accessibility")
+                accessibilityLabel: vsLocalized("feature.home.profile_accessibility"),
+                accessibilityIdentifier: "home.profileButton"
             ) {
                 coordinator.selectTab(.profile)
             }
@@ -26,6 +29,7 @@ struct HomeView: View {
                 Text(viewModel.estimatedTotalText)
                     .font(VaultTypography.rowTitle)
                     .foregroundStyle(VaultColor.foreground)
+                    .vaultAccessibilityID("home.totalValue")
 
                 Text(vsLocalized("feature.home.total.caption"))
                     .font(VaultTypography.micro)
@@ -50,13 +54,22 @@ struct HomeView: View {
                             viewModel.updateSelectedScanMode(mode)
                             coordinator.setPreferredScanMode(mode)
                         }
-                    )
+                    ),
+                    accessibilityIdentifier: { mode in
+                        switch mode {
+                        case .standard:
+                            "home.mode.standard"
+                        case .mystery:
+                            "home.mode.mystery"
+                        }
+                    }
                 )
 
                 Button(vsLocalized("feature.home.primary_cta")) {
                     coordinator.startScanFlow(mode: viewModel.selectedScanMode)
                 }
                 .buttonStyle(VaultScopePrimaryButtonStyle())
+                .vaultAccessibilityID("home.startScanButton")
             }
 
             VaultScopePanel {
@@ -72,7 +85,9 @@ struct HomeView: View {
                     .foregroundStyle(VaultColor.foregroundSubtle)
                     .textCase(.uppercase)
                     .tracking(0.8)
+                    .vaultAccessibilityID("home.viewAllButton")
                 }
+                .vaultAccessibilityID("home.recentScansSection")
 
                 if viewModel.hasRecentItems {
                     ForEach(Array(viewModel.displayedRecentItems.enumerated()), id: \.element.id) { index, item in
@@ -85,12 +100,14 @@ struct HomeView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        .vaultAccessibilityID("home.recentScanCell.\(item.id.uuidString)")
                     }
                 } else {
                     VaultEmptyStateBlock(
                         title: vsLocalized("feature.home.empty.title"),
                         message: vsLocalized("feature.home.empty.message"),
-                        actionTitle: vsLocalized("feature.home.primary_cta")
+                        actionTitle: vsLocalized("feature.home.primary_cta"),
+                        accessibilityIdentifier: "home.recentScansSection.empty"
                     ) {
                         coordinator.startScanFlow(mode: viewModel.selectedScanMode)
                     }

@@ -25,9 +25,11 @@ struct CameraScanView: View {
                 VaultScreenHeader(
                     title: vsLocalized("feature.scan.camera.title"),
                     subtitle: nil,
+                    titleAccessibilityIdentifier: "scan.title",
                     leadingAction: VaultHeaderAction(
                         systemImage: "xmark",
-                        accessibilityLabel: vsLocalized("feature.scan.camera.close")
+                        accessibilityLabel: vsLocalized("feature.scan.camera.close"),
+                        accessibilityIdentifier: "scan.closeButton"
                     ) {
                         coordinator.returnToHome()
                     }
@@ -41,7 +43,15 @@ struct CameraScanView: View {
                             viewModel.setSelectedScanMode(mode)
                             coordinator.setPreferredScanMode(mode)
                         }
-                    )
+                    ),
+                    accessibilityIdentifier: { mode in
+                        switch mode {
+                        case .standard:
+                            "scan.mode.standard"
+                        case .mystery:
+                            "scan.mode.mystery"
+                        }
+                    }
                 )
 
                 previewArea
@@ -75,6 +85,7 @@ struct CameraScanView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(viewModel.canCapture == false)
+                    .vaultAccessibilityID("scan.captureButton")
 
                     Text(vsLocalized("feature.scan.camera.shot.count"))
                         .font(VaultTypography.micro)
@@ -96,6 +107,7 @@ struct CameraScanView: View {
             }
         }
         .vaultNavigationChrome()
+        .vaultAccessibilityID("scan.screen")
     }
 
     private var isCameraVisible: Bool {
@@ -111,6 +123,7 @@ struct CameraScanView: View {
                     Rectangle()
                         .stroke(VaultColor.borderDefault, lineWidth: VaultBorder.hairline)
                 )
+                .vaultAccessibilityID("scan.overlay")
 
             switch viewModel.screenState {
             case .ready:
@@ -125,6 +138,7 @@ struct CameraScanView: View {
                     title: vsLocalized("feature.scan.camera.loading.title"),
                     message: vsLocalized("feature.scan.camera.loading.message"),
                     actionTitle: nil,
+                    accessibilityIdentifier: nil,
                     action: nil
                 )
 
@@ -132,7 +146,8 @@ struct CameraScanView: View {
                 fallbackOverlay(
                     title: vsLocalized("feature.scan.camera.simulator.title"),
                     message: vsLocalized("feature.scan.camera.simulator.message"),
-                    actionTitle: vsLocalized("feature.scan.camera.capture")
+                    actionTitle: vsLocalized("feature.scan.camera.capture"),
+                    accessibilityIdentifier: "scan.simulatorFallbackState"
                 ) {
                     Task {
                         if let session = await viewModel.capture() {
@@ -146,7 +161,8 @@ struct CameraScanView: View {
                 fallbackOverlay(
                     title: vsLocalized("feature.scan.camera.permission.title"),
                     message: vsLocalized("feature.scan.camera.permission.message"),
-                    actionTitle: vsLocalized("feature.scan.camera.permission.retry")
+                    actionTitle: vsLocalized("feature.scan.camera.permission.retry"),
+                    accessibilityIdentifier: "scan.permissionDeniedState"
                 ) {
                     Task {
                         await viewModel.retry()
@@ -157,7 +173,8 @@ struct CameraScanView: View {
                 fallbackOverlay(
                     title: vsLocalized("feature.scan.camera.unavailable.title"),
                     message: vsLocalized("feature.scan.camera.unavailable.message"),
-                    actionTitle: vsLocalized("feature.scan.camera.capture")
+                    actionTitle: vsLocalized("feature.scan.camera.capture"),
+                    accessibilityIdentifier: "scan.simulatorFallbackState"
                 ) {
                     Task {
                         if let session = await viewModel.capture() {
@@ -171,7 +188,8 @@ struct CameraScanView: View {
                 fallbackOverlay(
                     title: vsLocalized("feature.scan.camera.error.title"),
                     message: message,
-                    actionTitle: vsLocalized("feature.scan.camera.permission.retry")
+                    actionTitle: vsLocalized("feature.scan.camera.permission.retry"),
+                    accessibilityIdentifier: "scan.errorState"
                 ) {
                     Task {
                         await viewModel.retry()
@@ -230,6 +248,7 @@ struct CameraScanView: View {
         title: String,
         message: String,
         actionTitle: String?,
+        accessibilityIdentifier: String?,
         action: (() -> Void)?
     ) -> some View {
         VStack(spacing: VaultSpacing.md) {
@@ -237,6 +256,7 @@ struct CameraScanView: View {
                 title: title,
                 message: message,
                 actionTitle: actionTitle,
+                accessibilityIdentifier: accessibilityIdentifier,
                 action: action
             )
         }

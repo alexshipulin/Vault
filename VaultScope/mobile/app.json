@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "VaultScope",
+    "slug": "vaultscope-mobile",
+    "scheme": "vaultscope",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "VaultScope uses the camera to scan collectibles and antiques."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "VaultScope uses your library so you can upload collectible photos for analysis.",
+          "cameraPermission": "VaultScope uses the camera so you can capture collectible photos."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vaultscope.mobile"
+    },
+    "android": {
+      "package": "com.vaultscope.mobile"
+    },
+    "extra": {}
+  }
+}

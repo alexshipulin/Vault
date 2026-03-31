@@ -256,6 +256,7 @@ private struct VaultRootTabBar: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(isSelected(tab) ? VaultColor.inverseForeground : VaultColor.foreground)
                     .accessibilityLabel(vsLocalized(tab.titleKey))
+                    .vaultAccessibilityID("tab.\(tab.rawValue)")
                 }
             }
             .padding(.horizontal, VaultSpacing.lg)

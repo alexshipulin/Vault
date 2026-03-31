@@ -101,7 +101,12 @@ private extension AIChatViewModel {
             return
         }
 
-        let resolvedContext = context ?? await resolveContext()
+        let resolvedContext: ItemChatContext
+        if let context {
+            resolvedContext = context
+        } else {
+            resolvedContext = await resolveContext()
+        }
         context = resolvedContext
         quickPrompts = responseGenerator.suggestedPrompts(for: resolvedContext)
 

@@ -6,7 +6,6 @@ struct AppRouter: View {
     @EnvironmentObject private var container: DependencyContainer
     @Environment(AppCoordinator.self) private var coordinator
     @AppStorage(AppStorageKey.hasCompletedOnboarding.rawValue) private var hasCompletedOnboarding = false
-    @AppStorage(AppStorageKey.scanCount.rawValue) private var scanCount = 0
     @AppStorage(AppStorageKey.onboardingStep.rawValue) private var onboardingStep = 0
     @AppStorage(AppStorageKey.pendingTab.rawValue) private var pendingTabRawValue = AppTab.home.rawValue
 
@@ -22,7 +21,6 @@ struct AppRouter: View {
         .task {
             restoreState()
             container.subscriptionManager.refresh()
-            _ = scanCount
         }
         .onChange(of: hasCompletedOnboarding) { _, completed in
             if completed {
@@ -41,6 +39,11 @@ struct AppRouter: View {
     }
 
     private func activatePendingTab() {
+        guard coordinator.currentScanSession == nil, coordinator.scanPath.isEmpty else {
+            pendingTabRawValue = AppTab.scan.rawValue
+            return
+        }
+
         let pendingTab = AppTab(rawValue: pendingTabRawValue) ?? .home
         coordinator.selectTab(pendingTab)
         pendingTabRawValue = pendingTab.rawValue
@@ -62,9 +65,8 @@ struct AppRouter: View {
 
 // MARK: - AppStorageKey
 
-private enum AppStorageKey: String {
+enum AppStorageKey: String {
     case hasCompletedOnboarding
-    case scanCount
     case onboardingStep
     case pendingTab
 }

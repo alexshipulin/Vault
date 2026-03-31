@@ -18,15 +18,18 @@ struct ScanResultView: View {
                 VaultScreenHeader(
                     title: vsLocalized("feature.result.title"),
                     subtitle: nil,
+                    titleAccessibilityIdentifier: "result.headerTitle",
                     leadingAction: VaultHeaderAction(
                         systemImage: "chevron.left",
-                        accessibilityLabel: vsLocalized("feature.result.back")
+                        accessibilityLabel: vsLocalized("feature.result.back"),
+                        accessibilityIdentifier: "result.backButton"
                     ) {
                         dismiss()
                     },
                     trailingAction: VaultHeaderAction(
                         systemImage: "square.and.arrow.up",
-                        accessibilityLabel: vsLocalized("feature.result.share_cta")
+                        accessibilityLabel: vsLocalized("feature.result.share_cta"),
+                        accessibilityIdentifier: "result.headerShareButton"
                     ) {
                         isSharePresented = true
                     }
@@ -38,10 +41,12 @@ struct ScanResultView: View {
                     Text(viewModel.titleText)
                         .font(VaultTypography.screenTitle)
                         .foregroundStyle(VaultColor.foreground)
+                        .vaultAccessibilityID("result.title")
 
                     Text(viewModel.secondaryDescriptionText)
                         .font(VaultTypography.body)
                         .foregroundStyle(VaultColor.foregroundMuted)
+                        .vaultAccessibilityID("result.subtitle")
                 }
 
                 VaultPanel {
@@ -72,6 +77,7 @@ struct ScanResultView: View {
                         Text(viewModel.confidenceText)
                             .font(VaultTypography.screenTitle)
                             .foregroundStyle(VaultColor.foreground)
+                            .vaultAccessibilityID("result.confidence")
 
                         Spacer()
 
@@ -89,6 +95,7 @@ struct ScanResultView: View {
                     Text(viewModel.valuationRangeText)
                         .font(VaultTypography.screenTitle)
                         .foregroundStyle(VaultColor.foreground)
+                        .vaultAccessibilityID("result.valueRange")
 
                     Text(viewModel.sourceUpdateText)
                         .font(VaultTypography.micro)
@@ -101,12 +108,14 @@ struct ScanResultView: View {
                     Text(viewModel.summaryText)
                         .font(VaultTypography.body)
                         .foregroundStyle(VaultColor.foregroundMuted)
+                        .vaultAccessibilityID("result.summary")
                 }
 
                 Text(viewModel.disclaimerText)
                     .font(VaultTypography.micro)
                     .foregroundStyle(VaultColor.foregroundFaint)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .vaultAccessibilityID("result.disclaimer")
             }
             .padding(.horizontal, VaultSpacing.lg)
             .padding(.top, 20)
@@ -119,15 +128,18 @@ struct ScanResultView: View {
                     saveButton
 
                     Button(vsLocalized("feature.result.chat_cta")) {
+                        coordinator.selectedItemID = viewModel.result.id
                         coordinator.selectedItem = CollectibleListItem(scanResult: viewModel.result)
                         coordinator.showAIChat(from: .scan)
                     }
                     .buttonStyle(VaultSecondaryCTAButtonStyle())
+                    .vaultAccessibilityID("result.askAIButton")
 
                     Button(vsLocalized("feature.result.share_cta")) {
                         isSharePresented = true
                     }
                     .buttonStyle(VaultSecondaryCTAButtonStyle())
+                    .vaultAccessibilityID("result.shareButton")
                 }
             }
         }
@@ -138,6 +150,7 @@ struct ScanResultView: View {
         .vaultInlineNavigationTitleDisplayMode()
         .navigationBarBackButtonHidden()
         .vaultNavigationChrome()
+        .vaultAccessibilityID("result.screen")
         .task {
             await viewModel.loadSavedState()
         }
@@ -172,6 +185,7 @@ struct ScanResultView: View {
             Rectangle()
                 .stroke(VaultColor.borderDefault, lineWidth: VaultBorder.hairline)
         )
+        .vaultAccessibilityID("result.image")
     }
 
     private var confidenceBar: some View {
@@ -198,6 +212,7 @@ struct ScanResultView: View {
             Button(vsLocalized(viewModel.saveButtonTitleKey)) {}
                 .buttonStyle(VaultSecondaryCTAButtonStyle())
                 .disabled(true)
+                .vaultAccessibilityID("result.saveButton")
         } else {
             Button(vsLocalized(viewModel.saveButtonTitleKey)) {
                 Task {
@@ -208,6 +223,7 @@ struct ScanResultView: View {
             }
             .buttonStyle(VaultPrimaryCTAButtonStyle())
             .disabled(viewModel.isSaving)
+            .vaultAccessibilityID("result.saveButton")
         }
     }
 }

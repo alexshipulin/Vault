@@ -28,7 +28,9 @@ struct ProfileSettingsView: View {
         let resolvedViewModel = viewModel
 
         VaultScopeScreen(
-            titleKey: "feature.profile.title"
+            titleKey: "feature.profile.title",
+            screenAccessibilityIdentifier: "profile.screen",
+            titleAccessibilityIdentifier: "profile.title"
         ) {
             userPanel(resolvedViewModel)
             subscriptionPanel(resolvedViewModel)
@@ -114,6 +116,7 @@ struct ProfileSettingsView: View {
                 systemImage: "creditcard",
                 showsDisclosure: false
             )
+            .vaultAccessibilityID("profile.planRow")
 
             VaultDivider()
 
@@ -123,6 +126,7 @@ struct ProfileSettingsView: View {
                 systemImage: "barcode.viewfinder",
                 showsDisclosure: false
             )
+            .vaultAccessibilityID("profile.scansThisMonthRow")
         }
     }
 
@@ -155,6 +159,7 @@ struct ProfileSettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+            .vaultAccessibilityID("profile.currencyRow")
 
             VaultDivider()
 
@@ -169,6 +174,7 @@ struct ProfileSettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+            .vaultAccessibilityID("profile.notificationsRow")
         }
     }
 
@@ -190,6 +196,7 @@ struct ProfileSettingsView: View {
             }
             .buttonStyle(.plain)
             .disabled(viewModel.isExporting)
+            .vaultAccessibilityID("profile.exportDataRow")
 
             VaultDivider()
 
@@ -203,6 +210,7 @@ struct ProfileSettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+            .vaultAccessibilityID("profile.signOutRow")
         }
     }
 

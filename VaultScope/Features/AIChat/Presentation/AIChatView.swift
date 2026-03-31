@@ -19,9 +19,11 @@ struct AIChatView: View {
                     VaultScreenHeader(
                         title: vsLocalized("feature.chat.title"),
                         subtitle: nil,
+                        titleAccessibilityIdentifier: "chat.title",
                         leadingAction: VaultHeaderAction(
                             systemImage: "chevron.left",
-                            accessibilityLabel: vsLocalized("feature.chat.back")
+                            accessibilityLabel: vsLocalized("feature.chat.back"),
+                            accessibilityIdentifier: "chat.backButton"
                         ) {
                             dismiss()
                         }
@@ -34,12 +36,14 @@ struct AIChatView: View {
                     } else if bindableViewModel.isLoading {
                         VaultEmptyStateBlock(
                             title: vsLocalized("feature.chat.loading.title"),
-                            message: vsLocalized("feature.chat.loading.message")
+                            message: vsLocalized("feature.chat.loading.message"),
+                            accessibilityIdentifier: "chat.loadingState"
                         )
                     } else {
                         VaultEmptyStateBlock(
                             title: vsLocalized("feature.chat.empty.title"),
-                            message: vsLocalized("feature.chat.empty.message")
+                            message: vsLocalized("feature.chat.empty.message"),
+                            accessibilityIdentifier: "chat.emptyState"
                         )
                     }
                 }
@@ -64,6 +68,7 @@ struct AIChatView: View {
             .vaultInlineNavigationTitleDisplayMode()
             .navigationBarBackButtonHidden()
             .vaultNavigationChrome()
+            .vaultAccessibilityID("chat.screen")
             .task {
                 await bindableViewModel.loadIfNeeded()
             }
@@ -109,6 +114,7 @@ struct AIChatView: View {
                 }
             }
         }
+        .vaultAccessibilityID("chat.itemContext")
     }
 
     private func suggestedQuestionsPanel(
@@ -120,12 +126,13 @@ struct AIChatView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: VaultSpacing.sm) {
-                    ForEach(viewModel.quickPrompts, id: \.self) { prompt in
+                    ForEach(Array(viewModel.quickPrompts.enumerated()), id: \.offset) { index, prompt in
                         VaultChipButton(title: prompt) {
                             Task {
                                 await viewModel.sendPrompt(prompt)
                             }
                         }
+                        .vaultAccessibilityID("chat.suggestedQuestion.\(index)")
                     }
                 }
             }
@@ -136,9 +143,10 @@ struct AIChatView: View {
     private func chatThread(_ viewModel: AIChatViewModel) -> some View {
         VaultPanel {
             VStack(alignment: .leading, spacing: VaultSpacing.sm) {
-                ForEach(viewModel.messages) { message in
+                ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                     chatBubble(message)
                         .id(message.id)
+                        .vaultAccessibilityID(message.role == .user ? "chat.message.user.\(index)" : "chat.message.assistant.\(index)")
                 }
 
                 if viewModel.isSending {
@@ -217,11 +225,13 @@ struct AIChatView: View {
                     Rectangle()
                         .stroke(VaultColor.borderDefault, lineWidth: VaultBorder.hairline)
                 )
+                .vaultAccessibilityID("chat.inputField")
 
                 Button(vsLocalized("feature.chat.send"), action: onSend)
                 .buttonStyle(VaultPrimaryCTAButtonStyle())
                 .frame(width: 88)
                 .disabled(canSend == false)
+                .vaultAccessibilityID("chat.sendButton")
             }
         }
     }

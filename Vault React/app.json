@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Vault React",
+    "slug": "vault-react",
+    "scheme": "vaultreact",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Vault React uses the camera to scan collectibles."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alexshipulin.vaultreact"
+    },
+    "android": {
+      "package": "com.alexshipulin.vaultreact"
+    },
+    "extra": {}
+  }
+}

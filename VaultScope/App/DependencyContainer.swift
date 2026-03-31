@@ -38,7 +38,8 @@ final class DependencyContainer: ObservableObject {
     private(set) lazy var portfolioUseCase: PortfolioUseCase =
         PortfolioUseCase(collectionRepository: collectionRepository)
 
-    init(environment: AppEnvironment = .production) {
+    init(configuration: AppLaunchConfiguration = .current) {
+        let environment = configuration.environment
         let resolvedScanModePreferenceStore: any ScanModePreferenceStoring
 
         let resolvedAPIClient: APIClientProtocol
@@ -124,6 +125,54 @@ final class DependencyContainer: ObservableObject {
             resolvedItemChatSessionStore = InMemoryItemChatSessionStore()
             resolvedItemChatResponseGenerator = LocalMockItemChatResponseGenerator()
             resolvedTemporaryScanSessionStore = InMemoryTemporaryScanSessionStore()
+            resolvedUserPreferencesStore = userPreferencesStore
+            resolvedSubscriptionService = MockSubscriptionService()
+
+        case .uiTesting:
+            let scanModePreferenceStore = UserDefaultsScanModePreferenceStore()
+            let userPreferencesStore = UserDefaultsVaultUserPreferencesStore()
+            let keychainService = MockKeychainService(
+                storage: [
+                    .openAIKey: "ui-test-openai-key",
+                    .supabaseAnonKey: "ui-test-supabase-key",
+                    .pcgsToken: "ui-test-pcgs-token",
+                    .discogsConsumerKey: "ui-test-discogs-key",
+                    .eBayOAuthToken: "ui-test-ebay-token"
+                ]
+            )
+            let apiClient = MockAPIClient()
+            let cameraService = MockCameraService()
+            let mockResultFactory = LocalMockScanResultFactory()
+            let storageDirectory = configuration.storageDirectory
+            let seedItems = configuration.seedLocalData ? MockDomainFactory.seededCollectibleItems() : []
+
+            resolvedScanModePreferenceStore = scanModePreferenceStore
+            resolvedKeychainService = keychainService
+            resolvedAPIClient = apiClient
+            resolvedCameraService = cameraService
+            resolvedCameraPreviewSource = MockCameraPreviewSource()
+            resolvedVisionPreprocessor = MockVisionPreprocessor()
+            resolvedAIService = MockAIService(result: MockDomainFactory.scanResult())
+            resolvedAIChatService = MockAIChatService()
+            resolvedCollectionRepository = PersistentCollectionRepository(
+                storageURL: VaultLocalStorage.collectionURL(baseDirectory: storageDirectory),
+                seedItems: seedItems
+            )
+            resolvedPriceRepository = MockPriceRepository()
+            resolvedMockScanResultFactory = mockResultFactory
+            resolvedScanProcessingPipeline = FakeScanProcessingPipeline(
+                resultFactory: mockResultFactory,
+                stageDelayNanoseconds: configuration.fastProcessing ? 20_000_000 : 550_000_000,
+                interStageDelayNanoseconds: configuration.fastProcessing ? 10_000_000 : 250_000_000
+            )
+            resolvedItemMarketTrendProvider = LocalMockItemMarketTrendProvider()
+            resolvedItemChatSessionStore = FileBackedItemChatSessionStore(
+                storageURL: VaultLocalStorage.chatSessionsURL(baseDirectory: storageDirectory)
+            )
+            resolvedItemChatResponseGenerator = LocalMockItemChatResponseGenerator()
+            resolvedTemporaryScanSessionStore = FileBackedTemporaryScanSessionStore(
+                storageURL: VaultLocalStorage.temporaryScanSessionURL(baseDirectory: storageDirectory)
+            )
             resolvedUserPreferencesStore = userPreferencesStore
             resolvedSubscriptionService = MockSubscriptionService()
         }
@@ -236,6 +285,7 @@ final class DependencyContainer: ObservableObject {
 enum AppEnvironment {
     case production
     case mock
+    case uiTesting
 }
 
 // MARK: - Helpers

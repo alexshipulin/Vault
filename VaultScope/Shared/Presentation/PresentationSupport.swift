@@ -111,6 +111,8 @@ private extension DateFormatter {
 struct VaultScopeScreen<Content: View>: View {
     let titleKey: String
     let subtitleKey: String?
+    let screenAccessibilityIdentifier: String?
+    let titleAccessibilityIdentifier: String?
     let leadingAction: VaultHeaderAction?
     let trailingAction: VaultHeaderAction?
     let content: Content
@@ -118,12 +120,16 @@ struct VaultScopeScreen<Content: View>: View {
     init(
         titleKey: String,
         subtitleKey: String? = nil,
+        screenAccessibilityIdentifier: String? = nil,
+        titleAccessibilityIdentifier: String? = nil,
         leadingAction: VaultHeaderAction? = nil,
         trailingAction: VaultHeaderAction? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.titleKey = titleKey
         self.subtitleKey = subtitleKey
+        self.screenAccessibilityIdentifier = screenAccessibilityIdentifier
+        self.titleAccessibilityIdentifier = titleAccessibilityIdentifier
         self.leadingAction = leadingAction
         self.trailingAction = trailingAction
         self.content = content()
@@ -138,6 +144,7 @@ struct VaultScopeScreen<Content: View>: View {
                     VaultScreenHeader(
                         title: vsLocalized(titleKey),
                         subtitle: subtitleKey.map(vsLocalized),
+                        titleAccessibilityIdentifier: titleAccessibilityIdentifier,
                         leadingAction: leadingAction,
                         trailingAction: trailingAction
                     )
@@ -151,6 +158,7 @@ struct VaultScopeScreen<Content: View>: View {
             }
         }
         .vaultNavigationChrome()
+        .vaultAccessibilityID(screenAccessibilityIdentifier)
     }
 }
 
@@ -215,5 +223,14 @@ extension View {
         #else
         self
         #endif
+    }
+
+    @ViewBuilder
+    func vaultAccessibilityID(_ identifier: String?) -> some View {
+        if let identifier {
+            accessibilityIdentifier(identifier)
+        } else {
+            self
+        }
     }
 }

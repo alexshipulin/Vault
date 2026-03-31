@@ -157,6 +157,9 @@
 "feature.details.description.empty" = "No additional history was saved for this item yet.";
 "feature.details.notes" = "Notes";
 "feature.details.chat_cta" = "Ask AI About This Item";
+"feature.details.edit_placeholder.title" = "Edit";
+"feature.details.edit_placeholder.message" = "Editing saved appraisal fields is not part of the current local mock flow yet.";
+"feature.details.edit_placeholder.dismiss" = "OK";
 
 "feature.chat.title" = "Ask AI";
 "feature.chat.subtitle" = "Item-specific local mock assistant.";

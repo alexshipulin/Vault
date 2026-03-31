@@ -273,7 +273,8 @@
                           "lineHeight": 1.3,
                           "textAlign": "center",
                           "fontFamily": "Inter",
-                          "fontSize": 8
+                          "fontSize": 8,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -320,7 +321,8 @@
                           "lineHeight": 1.3,
                           "textAlign": "center",
                           "fontFamily": "Inter",
-                          "fontSize": 8
+                          "fontSize": 8,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -917,7 +919,8 @@
                       "lineHeight": 1.3,
                       "textAlign": "center",
                       "fontFamily": "Inter",
-                      "fontSize": 8
+                      "fontSize": 8,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -964,7 +967,8 @@
                       "lineHeight": 1.3,
                       "textAlign": "center",
                       "fontFamily": "Inter",
-                      "fontSize": 8
+                      "fontSize": 8,
+                      "fontWeight": "normal"
                     }
                   ]
                 }

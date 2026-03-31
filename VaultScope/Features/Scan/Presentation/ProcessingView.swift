@@ -20,9 +20,11 @@ struct ProcessingView: View {
                     VaultScreenHeader(
                         title: vsLocalized("feature.processing.title"),
                         subtitle: nil,
+                        titleAccessibilityIdentifier: "processing.headerTitle",
                         leadingAction: VaultHeaderAction(
                             systemImage: "chevron.left",
-                            accessibilityLabel: vsLocalized("feature.processing.back")
+                            accessibilityLabel: vsLocalized("feature.processing.back"),
+                            accessibilityIdentifier: "processing.backButton"
                         ) {
                             retake()
                         }
@@ -35,7 +37,8 @@ struct ProcessingView: View {
                         VaultEmptyStateBlock(
                             title: vsLocalized("feature.processing.empty.title"),
                             message: vsLocalized("feature.processing.empty.message"),
-                            actionTitle: vsLocalized("feature.processing.retake")
+                            actionTitle: vsLocalized("feature.processing.retake"),
+                            accessibilityIdentifier: "processing.emptyState"
                         ) {
                             retake()
                         }
@@ -54,12 +57,14 @@ struct ProcessingView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .textCase(.uppercase)
                     .tracking(0.8)
+                    .vaultAccessibilityID("processing.sourcesLine")
             }
         }
         .navigationTitle(vsLocalized("feature.processing.nav"))
         .vaultInlineNavigationTitleDisplayMode()
         .navigationBarBackButtonHidden()
         .vaultNavigationChrome()
+        .vaultAccessibilityID("processing.screen")
         .task {
             viewModel.startIfNeeded()
         }
@@ -91,6 +96,7 @@ struct ProcessingView: View {
                 .foregroundStyle(VaultColor.foregroundSubtle)
                 .textCase(.uppercase)
                 .tracking(0.8)
+                .vaultAccessibilityID("processing.retakeButton")
             }
 
             if let previewImage = viewModel.previewImage {
@@ -101,6 +107,7 @@ struct ProcessingView: View {
                         Rectangle()
                             .stroke(VaultColor.borderDefault, lineWidth: VaultBorder.hairline)
                     )
+                    .vaultAccessibilityID("processing.imagePreview")
             }
 
             VaultInfoRow(
@@ -122,7 +129,8 @@ struct ProcessingView: View {
             ForEach(viewModel.steps) { step in
                 VaultProgressRow(
                     title: vsLocalized(step.titleKey),
-                    state: step.state
+                    state: step.state,
+                    accessibilityIdentifier: accessibilityIdentifier(for: step.kind)
                 )
             }
         }
@@ -131,5 +139,18 @@ struct ProcessingView: View {
     private func retake() {
         viewModel.cancelProcessing()
         coordinator.retakeCurrentScan()
+    }
+
+    private func accessibilityIdentifier(for kind: ScanProcessingStageKind) -> String {
+        switch kind {
+        case .objectRecognition:
+            "processing.step.objectRecognition"
+        case .conditionAssessment:
+            "processing.step.conditionAssessment"
+        case .priceLookup:
+            "processing.step.priceLookup"
+        case .historicalRecords:
+            "processing.step.historicalRecords"
+        }
     }
 }

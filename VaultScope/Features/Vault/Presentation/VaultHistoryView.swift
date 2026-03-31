@@ -14,11 +14,14 @@ struct VaultHistoryView: View {
         @Bindable var viewModel = viewModel
 
         VaultScopeScreen(
-            titleKey: "feature.vault.title"
+            titleKey: "feature.vault.title",
+            screenAccessibilityIdentifier: "vault.screen",
+            titleAccessibilityIdentifier: "vault.title"
         ) {
             VaultSearchField(
                 placeholder: vsLocalized("feature.vault.search.placeholder"),
-                text: $viewModel.searchText
+                text: $viewModel.searchText,
+                accessibilityIdentifier: "vault.searchField"
             )
 
             VaultPanel {
@@ -27,6 +30,7 @@ struct VaultHistoryView: View {
                         title: vsLocalized("feature.vault.summary.count"),
                         value: viewModel.itemCountText
                     )
+                    .vaultAccessibilityID("vault.itemCount")
 
                     Rectangle()
                         .fill(VaultColor.borderMuted)
@@ -36,6 +40,7 @@ struct VaultHistoryView: View {
                         title: vsLocalized("feature.vault.summary.value"),
                         value: viewModel.totalValueText
                     )
+                    .vaultAccessibilityID("vault.totalValue")
                 }
             }
 
@@ -72,8 +77,10 @@ struct VaultHistoryView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .vaultAccessibilityID("vault.itemCell.\(item.id.uuidString)")
                         }
                     }
+                    .vaultAccessibilityID("vault.grid")
                 } else {
                     emptyState
                 }
@@ -112,7 +119,8 @@ struct VaultHistoryView: View {
             VaultEmptyStateBlock(
                 title: vsLocalized("feature.vault.search_empty.title"),
                 message: vsLocalized("feature.vault.search_empty.message"),
-                actionTitle: vsLocalized("feature.vault.search.clear")
+                actionTitle: vsLocalized("feature.vault.search.clear"),
+                accessibilityIdentifier: "vault.emptyState"
             ) {
                 viewModel.clearSearch()
             }
@@ -120,7 +128,8 @@ struct VaultHistoryView: View {
             VaultEmptyStateBlock(
                 title: vsLocalized("feature.vault.empty.title"),
                 message: vsLocalized("feature.vault.empty.message"),
-                actionTitle: vsLocalized("feature.vault.empty.action")
+                actionTitle: vsLocalized("feature.vault.empty.action"),
+                accessibilityIdentifier: "vault.emptyState"
             ) {
                 coordinator.startScanFlow(mode: coordinator.preferredScanMode)
             }

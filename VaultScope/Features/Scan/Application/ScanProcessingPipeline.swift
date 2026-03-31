@@ -63,9 +63,17 @@ protocol ScanProcessingPipelineProtocol: AnyObject {
 
 final class FakeScanProcessingPipeline: ScanProcessingPipelineProtocol {
     private let resultFactory: any MockScanResultBuilding
+    private let stageDelayNanoseconds: UInt64
+    private let interStageDelayNanoseconds: UInt64
 
-    init(resultFactory: any MockScanResultBuilding) {
+    init(
+        resultFactory: any MockScanResultBuilding,
+        stageDelayNanoseconds: UInt64 = 550_000_000,
+        interStageDelayNanoseconds: UInt64 = 250_000_000
+    ) {
         self.resultFactory = resultFactory
+        self.stageDelayNanoseconds = stageDelayNanoseconds
+        self.interStageDelayNanoseconds = interStageDelayNanoseconds
     }
 
     func process(session: TemporaryScanSession) -> AsyncThrowingStream<ScanProcessingUpdate, Error> {
@@ -88,14 +96,14 @@ final class FakeScanProcessingPipeline: ScanProcessingPipelineProtocol {
                         continuation.yield(.stageSnapshots(snapshots))
                         continuation.yield(.searchingSource(vsLocalized(sources[index])))
 
-                        try await Task.sleep(nanoseconds: 550_000_000)
+                        try await Task.sleep(nanoseconds: stageDelayNanoseconds)
                         try Task.checkCancellation()
 
                         snapshots[index] = ScanProcessingStageSnapshot(kind: stageKind, status: .complete)
                         continuation.yield(.stageSnapshots(snapshots))
 
                         if index < ScanProcessingStageKind.allCases.count - 1 {
-                            try await Task.sleep(nanoseconds: 250_000_000)
+                            try await Task.sleep(nanoseconds: interStageDelayNanoseconds)
                         }
                     }
 

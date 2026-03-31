@@ -8,6 +8,7 @@ struct ItemDetailsView: View {
     let sourceTab: AppTab
     @State private var viewModel: ItemDetailsViewModel
     @State private var isSharePresented = false
+    @State private var isEditPlaceholderPresented = false
 
     init(sourceTab: AppTab, viewModel: ItemDetailsViewModel) {
         self.sourceTab = sourceTab
@@ -20,16 +21,19 @@ struct ItemDetailsView: View {
                 VaultScreenHeader(
                     title: vsLocalized("feature.details.title"),
                     subtitle: nil,
+                    titleAccessibilityIdentifier: "details.headerTitle",
                     leadingAction: VaultHeaderAction(
                         systemImage: "chevron.left",
-                        accessibilityLabel: vsLocalized("feature.details.back")
+                        accessibilityLabel: vsLocalized("feature.details.back"),
+                        accessibilityIdentifier: "details.backButton"
                     ) {
                         dismiss()
                     },
                     trailingAction: viewModel.hasLoadedItem
                         ? VaultHeaderAction(
                             systemImage: "ellipsis",
-                            accessibilityLabel: vsLocalized("feature.details.share_cta")
+                            accessibilityLabel: vsLocalized("feature.details.share_cta"),
+                            accessibilityIdentifier: "details.moreButton"
                         ) {
                             isSharePresented = true
                         }
@@ -64,11 +68,13 @@ struct ItemDetailsView: View {
                             coordinator.showAIChat(from: sourceTab)
                         }
                         .buttonStyle(VaultPrimaryCTAButtonStyle())
+                        .vaultAccessibilityID("details.askAIButton")
 
                         Button(vsLocalized("feature.details.share_cta")) {
                             isSharePresented = true
                         }
                         .buttonStyle(VaultSecondaryCTAButtonStyle())
+                        .vaultAccessibilityID("details.shareButton")
                     }
                 }
             }
@@ -78,10 +84,19 @@ struct ItemDetailsView: View {
                 VaultActivitySheet(activityItems: [presentation.shareText])
             }
         }
+        .alert(
+            vsLocalized("feature.details.edit_placeholder.title"),
+            isPresented: $isEditPlaceholderPresented
+        ) {
+            Button(vsLocalized("feature.details.edit_placeholder.dismiss"), role: .cancel) {}
+        } message: {
+            Text(vsLocalized("feature.details.edit_placeholder.message"))
+        }
         .navigationTitle(vsLocalized("feature.details.nav"))
         .vaultInlineNavigationTitleDisplayMode()
         .navigationBarBackButtonHidden()
         .vaultNavigationChrome()
+        .vaultAccessibilityID("details.screen")
         .task {
             await viewModel.loadIfNeeded()
         }
@@ -110,6 +125,7 @@ struct ItemDetailsView: View {
             Rectangle()
                 .stroke(VaultColor.borderDefault, lineWidth: VaultBorder.hairline)
         )
+        .vaultAccessibilityID("details.image")
     }
 
     private func infoStrip(presentation: ItemDetailsPresentation) -> some View {
@@ -126,7 +142,7 @@ struct ItemDetailsView: View {
                 Spacer()
 
                 Button(vsLocalized("feature.details.edit")) {
-                    // Edit flow intentionally deferred until item editing is scoped.
+                    isEditPlaceholderPresented = true
                 }
                 .buttonStyle(.plain)
                 .font(VaultTypography.micro)
@@ -142,6 +158,7 @@ struct ItemDetailsView: View {
             Text(presentation.titleText)
                 .font(VaultTypography.screenTitle)
                 .foregroundStyle(VaultColor.foreground)
+                .vaultAccessibilityID("details.title")
 
             Text(presentation.secondaryText)
                 .font(VaultTypography.body)
@@ -174,6 +191,7 @@ struct ItemDetailsView: View {
                     .foregroundStyle(VaultColor.foreground)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
+                    .vaultAccessibilityID("details.valueRange")
 
                 Spacer(minLength: 0)
 
