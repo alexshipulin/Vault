@@ -45,6 +45,52 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "antique_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "keywords",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "priceRealized",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "antique_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "keywords",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "priceRealized",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "antique_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "priceRealized",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

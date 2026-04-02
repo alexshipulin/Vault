@@ -361,9 +361,8 @@ const styles = StyleSheet.create({
     backgroundColor: dividerColor,
   },
   confidenceRow: {
-    minHeight: 72,
+    height: 44,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -394,9 +393,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   valueBlock: {
-    minHeight: 84,
+    height: 72,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -404,7 +402,6 @@ const styles = StyleSheet.create({
   valueLeft: {
     gap: 4,
     flexShrink: 1,
-    justifyContent: "center",
   },
   valueRange: {
     color: colors.foreground,
@@ -498,6 +495,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     backgroundColor: colors.background,
-    paddingBottom: spacing.sm,
+    paddingBottom: 6,
   },
 });
