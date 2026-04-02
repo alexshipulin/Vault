@@ -2,7 +2,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { ScrollView, Text, TextInput, View } from "react-native";
 
-import { useAppState } from "@src/app/AppProvider";
+import { useAppState } from "@src/core/app/AppProvider";
 import type { ChatMessage, CollectibleItem, ItemChatContext, PreferredCurrency } from "@src/domain/models";
 import {
   Chip,

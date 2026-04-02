@@ -7,7 +7,7 @@ module.exports = {
     "^@src/(.*)$": "<rootDir>/src/$1"
   },
   transformIgnorePatterns: [
-    "node_modules/(?!((jest-)?react-native|@react-native|expo(nent)?|@expo(nent)?/.*|expo-camera|expo-file-system|expo-router|expo-sharing|react-native-reanimated|@react-navigation/.*))"
+    "node_modules/(?!((jest-)?react-native|@react-native|expo(nent)?|@expo(nent)?/.*|expo-camera|expo-file-system|expo-router|expo-sharing|react-native-reanimated|@react-navigation/.*|firebase|@firebase/.*))"
   ],
   collectCoverageFrom: [
     "src/**/*.ts",

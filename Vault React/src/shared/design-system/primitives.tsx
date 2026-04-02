@@ -9,17 +9,20 @@ import {
   TextInput,
   View
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
 import type { CollectibleListItem, ProcessingStageStatus, ScanMode } from "@src/domain/models";
 import { colors, borders, iconSize, spacing, textStyles } from "@src/shared/design-system/tokens";
 
+const SCROLL_SCREEN_BOTTOM_PADDING = 40;
+
 export function Screen({
   children,
-  testID
-}: React.PropsWithChildren<{ testID?: string }>) {
+  testID,
+  edges
+}: React.PropsWithChildren<{ testID?: string; edges?: Edge[] }>) {
   return (
-    <SafeAreaView style={styles.screen} testID={testID}>
+    <SafeAreaView edges={edges} style={styles.screen} testID={testID}>
       {children}
     </SafeAreaView>
   );
@@ -30,7 +33,7 @@ export function ScrollScreen({
   testID
 }: React.PropsWithChildren<{ testID?: string }>) {
   return (
-    <Screen testID={testID}>
+    <Screen edges={["top", "left", "right"]} testID={testID}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -268,8 +271,17 @@ export function Thumbnail({
   photoUri?: string;
   size?: number;
 }) {
-  if (photoUri) {
-    return <Image source={{ uri: photoUri }} style={{ width: size, height: size, borderWidth: borders.hairline, borderColor: colors.borderDefault }} />;
+  const [didFail, setDidFail] = React.useState(false);
+
+  if (photoUri && !didFail) {
+    return (
+      <Image
+        source={{ uri: photoUri }}
+        style={{ width: size, height: size, borderWidth: borders.hairline, borderColor: colors.borderDefault }}
+        resizeMode="cover"
+        onError={() => setDidFail(true)}
+      />
+    );
   }
 
   return (
@@ -438,7 +450,7 @@ export const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: SCROLL_SCREEN_BOTTOM_PADDING,
     gap: spacing.lg
   },
   headerWrapper: {

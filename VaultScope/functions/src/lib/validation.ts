@@ -36,7 +36,7 @@ export const priceRangeSchema = z.object({
   path: ["max"],
 });
 
-export const antiqueAuctionDataSchema = z.object({
+const antiqueAuctionDataBaseSchema = z.object({
   title: trimmedStringSchema,
   description: z.string().trim().default(""),
   priceRealized: nullableMoneySchema,
@@ -53,7 +53,9 @@ export const antiqueAuctionDataSchema = z.object({
   keywords: z.array(trimmedStringSchema).min(1).max(25),
   createdAt: firestoreDateSchema,
   updatedAt: firestoreDateSchema,
-}).refine((value) => {
+});
+
+export const antiqueAuctionDataSchema = antiqueAuctionDataBaseSchema.refine((value) => {
   if (value.estimateLow === null || value.estimateHigh === null) {
     return true;
   }
@@ -64,8 +66,17 @@ export const antiqueAuctionDataSchema = z.object({
   path: ["estimateHigh"],
 });
 
-export const antiqueAuctionDocumentSchema = antiqueAuctionDataSchema.extend({
+export const antiqueAuctionDocumentSchema = antiqueAuctionDataBaseSchema.extend({
   id: trimmedStringSchema,
+}).refine((value) => {
+  if (value.estimateLow === null || value.estimateHigh === null) {
+    return true;
+  }
+
+  return value.estimateLow <= value.estimateHigh;
+}, {
+  message: "estimateLow must be less than or equal to estimateHigh",
+  path: ["estimateHigh"],
 });
 
 export const scanIdentificationSchema = z.object({

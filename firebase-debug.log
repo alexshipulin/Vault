@@ -43,3 +43,95 @@ You're about to initialize a Firebase project in this directory:
     at addChunk (node:internal/streams/readable:559:12)
 [error] 
 [error] Error: An unexpected error has occurred.
+[debug] [2026-04-01T08:19:20.060Z] ----------------------------------------------------------------------
+[debug] [2026-04-01T08:19:20.062Z] Command:       /opt/homebrew/Cellar/node/25.5.0/bin/node /Users/alexshipulin/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase init dataconnect --project your-actual-firebase-project-id
+[debug] [2026-04-01T08:19:20.062Z] CLI Version:   15.12.0
+[debug] [2026-04-01T08:19:20.062Z] Platform:      darwin
+[debug] [2026-04-01T08:19:20.062Z] Node Version:  v25.5.0
+[debug] [2026-04-01T08:19:20.062Z] Time:          Wed Apr 01 2026 16:19:20 GMT+0800 (Central Indonesia Time)
+[debug] [2026-04-01T08:19:20.062Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/alexshipulin/Desktop/Vault
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2026-04-01T08:19:20.671Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-01T08:19:20.671Z] > authorizing via signed-in user (ialexshipulin@gmail.com)
+[debug] [2026-04-01T08:19:20.671Z] Checked if tokens are valid: true, expires at: 1775034263155
+[debug] [2026-04-01T08:19:20.671Z] Checked if tokens are valid: true, expires at: 1775034263155
+[debug] [2026-04-01T08:19:20.672Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id [none]
+[debug] [2026-04-01T08:19:21.993Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id 403
+[debug] [2026-04-01T08:19:21.993Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2026-04-01T08:19:21.994Z] Request to https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id had HTTP Error: 403, The caller does not have permission
+[debug] [2026-04-01T08:19:21.995Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id had HTTP Error: 403, The caller does not have permission
+    at responseToError (/Users/alexshipulin/.npm/_npx/ba4f1959e38407b5/node_modules/firebase-tools/lib/responseToError.js:53:12)
+    at RetryOperation._fn (/Users/alexshipulin/.npm/_npx/ba4f1959e38407b5/node_modules/firebase-tools/lib/apiv2.js:333:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+[error] 
+[error] Error: Failed to get Firebase project your-actual-firebase-project-id. Please make sure the project exists and your account has permission to access it.
+[debug] [2026-04-01T08:22:16.066Z] ----------------------------------------------------------------------
+[debug] [2026-04-01T08:22:16.068Z] Command:       /opt/homebrew/Cellar/node/25.5.0/bin/node /Users/alexshipulin/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase init dataconnect --project your-actual-firebase-project-id
+[debug] [2026-04-01T08:22:16.068Z] CLI Version:   15.12.0
+[debug] [2026-04-01T08:22:16.068Z] Platform:      darwin
+[debug] [2026-04-01T08:22:16.068Z] Node Version:  v25.5.0
+[debug] [2026-04-01T08:22:16.068Z] Time:          Wed Apr 01 2026 16:22:16 GMT+0800 (Central Indonesia Time)
+[debug] [2026-04-01T08:22:16.068Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/alexshipulin/Desktop/Vault
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2026-04-01T08:22:16.665Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-01T08:22:16.666Z] > authorizing via signed-in user (ialexshipulin@gmail.com)
+[debug] [2026-04-01T08:22:16.666Z] Checked if tokens are valid: true, expires at: 1775034263155
+[debug] [2026-04-01T08:22:16.666Z] Checked if tokens are valid: true, expires at: 1775034263155
+[debug] [2026-04-01T08:22:16.666Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id [none]
+[debug] [2026-04-01T08:22:17.718Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id 403
+[debug] [2026-04-01T08:22:17.718Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2026-04-01T08:22:17.719Z] Request to https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id had HTTP Error: 403, The caller does not have permission
+[debug] [2026-04-01T08:22:17.720Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/your-actual-firebase-project-id had HTTP Error: 403, The caller does not have permission
+    at responseToError (/Users/alexshipulin/.npm/_npx/ba4f1959e38407b5/node_modules/firebase-tools/lib/responseToError.js:53:12)
+    at RetryOperation._fn (/Users/alexshipulin/.npm/_npx/ba4f1959e38407b5/node_modules/firebase-tools/lib/apiv2.js:333:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+[error] 
+[error] Error: Failed to get Firebase project your-actual-firebase-project-id. Please make sure the project exists and your account has permission to access it.
+[debug] [2026-04-01T08:46:28.480Z] ----------------------------------------------------------------------
+[debug] [2026-04-01T08:46:28.486Z] Command:       /Users/alexshipulin/.nvm/versions/node/v24.13.1/bin/node /Users/alexshipulin/.nvm/versions/node/v24.13.1/bin/firebase apps:list --project vault-93a7b
+[debug] [2026-04-01T08:46:28.486Z] CLI Version:   15.9.1
+[debug] [2026-04-01T08:46:28.486Z] Platform:      darwin
+[debug] [2026-04-01T08:46:28.486Z] Node Version:  v24.13.1
+[debug] [2026-04-01T08:46:28.486Z] Time:          Wed Apr 01 2026 16:46:28 GMT+0800 (Central Indonesia Time)
+[debug] [2026-04-01T08:46:28.486Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-01T08:46:28.499Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-01T08:46:28.500Z] > authorizing via signed-in user (ialexshipulin@gmail.com)
+[debug] [2026-04-01T08:46:28.501Z] Checked if tokens are valid: true, expires at: 1775034263155
+[debug] [2026-04-01T08:46:28.501Z] Checked if tokens are valid: true, expires at: 1775034263155
+[debug] [2026-04-01T08:46:28.501Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/vault-93a7b:searchApps pageSize=100
+[debug] [2026-04-01T08:46:29.358Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/vault-93a7b:searchApps 200

@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 import axios from "axios";
 import { initializeApp } from "firebase-admin/app";
@@ -36,6 +38,7 @@ setGlobalOptions({ region: "us-central1", maxInstances: 10 });
 const db = getFirestore();
 const auctionsCollection = db.collection("antique_auctions");
 const statsCollection = db.collection("stats");
+const STARTER_SCRAPER_PAYLOAD_PATH = path.resolve(__dirname, "../data/starter-seed.json");
 
 const SCRAPER_RUNNER_URL = defineString("SCRAPER_RUNNER_URL");
 const NOTIFICATION_WEBHOOK_URL = defineString("NOTIFICATION_WEBHOOK_URL");
@@ -330,6 +333,17 @@ async function sendCompletionNotification(payload: Record<string, unknown>): Pro
   const webhookUrl = NOTIFICATION_WEBHOOK_URL.value();
   const webhookApiKey = NOTIFICATION_WEBHOOK_API_KEY.value();
 
+  if (
+    !webhookUrl ||
+    webhookUrl.startsWith("disabled://") ||
+    webhookUrl.includes("example.invalid")
+  ) {
+    logger.info("Skipping completion notification because webhook is disabled", {
+      configuredWebhook: webhookUrl,
+    });
+    return;
+  }
+
   try {
     await axios.post(webhookUrl, payload, {
       headers: webhookApiKey
@@ -401,6 +415,12 @@ async function requestScraperRunnerPayload(): Promise<ScraperRunnerResponse> {
   throw new Error("Scraper runner request exhausted retries");
 }
 
+function loadStarterScraperItems(): ScrapedItemInput[] {
+  const raw = readFileSync(STARTER_SCRAPER_PAYLOAD_PATH, "utf8");
+  const parsed = JSON.parse(raw) as unknown;
+  return coercePayloadItems(parsed);
+}
+
 async function writeMaintenanceSummary(summary: CleanupSummary): Promise<void> {
   await statsCollection.doc("system").set(
     {
@@ -470,6 +490,47 @@ export const processScrapedData = onRequest(
   },
 );
 
+export const scraperRunnerStub = onRequest(
+  {
+    cors: true,
+    timeoutSeconds: 300,
+    secrets: [SCRAPER_RUNNER_API_KEY],
+  },
+  async (req, res) => {
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    if (req.method !== "POST" && req.method !== "GET") {
+      res.status(405).json({ success: false, error: "Method not allowed" });
+      return;
+    }
+
+    const providedApiKey = extractApiKey(req.headers as Record<string, unknown>);
+    if (providedApiKey !== SCRAPER_RUNNER_API_KEY.value()) {
+      res.status(401).json({ success: false, error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      const items = loadStarterScraperItems();
+      const response: ScraperRunnerResponse = {
+        success: true,
+        items,
+        count: items.length,
+      };
+      res.status(200).json(response);
+    } catch (error) {
+      logger.error("scraperRunnerStub failed", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to load starter scraper payload",
+      });
+    }
+  },
+);
+
 export const weeklyScrapingJob = onSchedule(
   {
     schedule: "0 2 * * 0",
@@ -477,7 +538,7 @@ export const weeklyScrapingJob = onSchedule(
     retryCount: 3,
     minBackoffSeconds: 60,
     maxBackoffSeconds: 3600,
-    timeoutSeconds: 3600,
+    timeoutSeconds: 1800,
     secrets: [SCRAPER_RUNNER_API_KEY, NOTIFICATION_WEBHOOK_API_KEY],
   },
   async () => {
@@ -533,7 +594,7 @@ export const cleanupOldData = onSchedule(
     retryCount: 2,
     minBackoffSeconds: 300,
     maxBackoffSeconds: 3600,
-    timeoutSeconds: 3600,
+    timeoutSeconds: 1800,
   },
   async () => {
     const executedAt = new Date();

@@ -1,0 +1,5 @@
+serviceAccountKey.json
+vault-93a7b-firebase-adminsdk-fbsvc-936d0485bb.json
+*-firebase-adminsdk-*.json
+firebase-debug.log
+functions/.env.vault-93a7b

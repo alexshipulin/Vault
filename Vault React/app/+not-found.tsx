@@ -10,7 +10,7 @@ export default function NotFoundScreen() {
         title="Route not found"
         message="This route is not part of the migrated Vault React flow."
         actionTitle="Go Home"
-        onAction={() => router.replace("/(tabs)")}
+        onAction={() => router.replace("/")}
       />
     </Screen>
   );

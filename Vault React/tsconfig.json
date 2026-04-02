@@ -22,9 +22,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "constants/**/*.ts",
-    "app.config.ts",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "app.config.ts"
   ],
   "exclude": [
     "lib/**/*",

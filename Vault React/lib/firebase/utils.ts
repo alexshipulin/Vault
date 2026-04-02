@@ -12,6 +12,10 @@ import {
 import { getVaultScopeDb } from "@/lib/firebase/config";
 import type { AntiqueAuction, SearchFilters } from "@/lib/firebase/types";
 
+export interface FirestoreSearchQueryOptions {
+  sortDirection?: "asc" | "desc";
+}
+
 const STOP_WORDS = new Set([
   "the",
   "a",
@@ -134,8 +138,10 @@ export function extractSearchKeywords(queryText: string): string[] {
 export function buildFirestoreQuery(
   keywords: string[],
   filters: SearchFilters = {},
+  options: FirestoreSearchQueryOptions = {},
 ): Query<DocumentData> {
   const constraints: QueryConstraint[] = [];
+  const sortDirection = options.sortDirection ?? "desc";
 
   if (keywords.length > 0) {
     constraints.push(where("keywords", "array-contains-any", keywords.slice(0, 10)));
@@ -165,7 +171,7 @@ export function buildFirestoreQuery(
     constraints.push(where("saleDate", "<=", filters.dateTo));
   }
 
-  constraints.push(orderBy("priceRealized", "desc"));
+  constraints.push(orderBy("priceRealized", sortDirection));
 
   return query(collection(getVaultScopeDb(), "antique_auctions"), ...constraints);
 }

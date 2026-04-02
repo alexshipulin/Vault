@@ -3,9 +3,10 @@ import { AsyncStoragePreferencesStore } from "@src/data/local/AsyncStoragePrefer
 import { AsyncStorageScanModeStore } from "@src/data/local/AsyncStorageScanModeStore";
 import { AsyncStorageTemporaryScanSessionStore } from "@src/data/local/AsyncStorageTemporaryScanSessionStore";
 import { clearVaultReactStorage } from "@src/data/local/storage";
+import { seededItems } from "@src/data/seeds/seededItems";
 import { DEFAULT_PREFERENCES, type ChatMessage } from "@src/domain/models";
 import { scansThisMonth, totalCollectionValue } from "@src/shared/utils/formatters";
-import { seededItems, seededTemporarySession } from "@src/test/fixtures/mockData";
+import { seededTemporarySession } from "@src/test/fixtures/mockData";
 
 describe("local stores and aggregate utilities", () => {
   beforeEach(async () => {

@@ -39,6 +39,7 @@ import type { CollectionItem } from "@/lib/types";
 const DEFAULT_LIMIT = 20;
 const PREFETCH_PAGE_NUMBER = 2;
 const MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const COMPARABLE_CANDIDATE_LIMIT = 20;
 
 const inMemorySearchCache = new LruCache<string, SearchResult>({
   maxSize: 50,
@@ -116,6 +117,24 @@ function normalizeCollectionItems(snapshotDocs: Array<QueryDocumentSnapshot<Docu
   });
 }
 
+function mergeUniqueResults(resultSets: SearchResult[]): SearchResult {
+  const seenIds = new Set<string>();
+  const merged: SearchResult = [];
+
+  for (const resultSet of resultSets) {
+    for (const item of resultSet) {
+      if (seenIds.has(item.id)) {
+        continue;
+      }
+
+      seenIds.add(item.id);
+      merged.push(item);
+    }
+  }
+
+  return merged;
+}
+
 export class AntiqueSearchEngine {
   private readonly defaultLimit: number;
 
@@ -151,6 +170,49 @@ export class AntiqueSearchEngine {
       buildFirestoreQuery(keywords, filters),
       normalizedLimit,
     );
+  }
+
+  async searchComparableAuctions(
+    queryText: string,
+    filters: SearchFilters = {},
+    limit = this.defaultLimit,
+  ): Promise<SearchResult> {
+    const keywords = extractSearchKeywords(queryText);
+
+    if (keywords.length === 0) {
+      return [];
+    }
+
+    const normalizedLimit = Math.min(Math.max(limit, 1), COMPARABLE_CANDIDATE_LIMIT);
+    const candidateLimit = Math.min(
+      COMPARABLE_CANDIDATE_LIMIT,
+      Math.max(normalizedLimit * 2, normalizedLimit),
+    );
+
+    const [highToLow, lowToHigh] = await Promise.all([
+      this.executeSearch(
+        buildSearchCacheKey("comparables-desc", {
+          keywords,
+          filters,
+          page: 1,
+          limit: candidateLimit,
+        }),
+        buildFirestoreQuery(keywords, filters, { sortDirection: "desc" }),
+        candidateLimit,
+      ),
+      this.executeSearch(
+        buildSearchCacheKey("comparables-asc", {
+          keywords,
+          filters,
+          page: 1,
+          limit: candidateLimit,
+        }),
+        buildFirestoreQuery(keywords, filters, { sortDirection: "asc" }),
+        candidateLimit,
+      ),
+    ]);
+
+    return mergeUniqueResults([highToLow, lowToHigh]).slice(0, COMPARABLE_CANDIDATE_LIMIT);
   }
 
   createDebouncedKeywordSearch(

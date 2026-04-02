@@ -9,7 +9,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   userInterfaceStyle: "dark",
   plugins: [
     "expo-router",
-    "expo-sharing",
     [
       "expo-camera",
       {
@@ -17,9 +16,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       }
     ]
   ],
-  experiments: {
-    typedRoutes: true
-  },
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.alexshipulin.vaultreact"
@@ -36,12 +32,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? "",
     firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
     geminiApiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? "",
+    geminiModel: process.env.EXPO_PUBLIC_GEMINI_MODEL ?? "",
     vaultEnvironment: process.env.EXPO_PUBLIC_VAULT_ENVIRONMENT ?? "mock",
     vaultSeedData: process.env.EXPO_PUBLIC_VAULT_SEED_DATA ?? "true",
     vaultFastProcessing: process.env.EXPO_PUBLIC_VAULT_FAST_PROCESSING ?? "false",
     vaultClearData: process.env.EXPO_PUBLIC_VAULT_CLEAR_DATA ?? "false",
     vaultSkipOnboarding: process.env.EXPO_PUBLIC_VAULT_SKIP_ONBOARDING ?? "true",
     vaultRemoteBackend: process.env.EXPO_PUBLIC_VAULT_REMOTE_BACKEND ?? "false",
-    vaultForceMockCamera: process.env.EXPO_PUBLIC_VAULT_FORCE_MOCK_CAMERA ?? "false"
+    vaultForceMockCamera: process.env.EXPO_PUBLIC_VAULT_FORCE_MOCK_CAMERA ?? "false",
+    vaultDebugSinkUrl: process.env.EXPO_PUBLIC_VAULT_DEBUG_SINK_URL ?? ""
   }
 });

@@ -1,79 +1,223 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Image, Text, View } from "react-native";
-
-import { useAppState } from "@src/app/AppProvider";
-import type { ProcessingStageSnapshot } from "@src/domain/models";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  EmptyState,
-  HeaderAction,
-  InfoRow,
-  Panel,
-  ProgressRow,
-  Screen,
-  ScreenHeader,
-  SectionLabel,
-  StickyActionBar
-} from "@src/shared/design-system/primitives";
-import { colors, spacing, textStyles } from "@src/shared/design-system/tokens";
+  Alert,
+  Animated,
+  Easing,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { performanceMonitor } from "@/lib/performance/monitoring";
+import { useAppState } from "@src/core/app/AppProvider";
+import type { ProcessingStageKind, ScanResult } from "@src/domain/models";
+import { Screen } from "@src/shared/design-system/primitives";
+import { colors } from "@src/shared/design-system/tokens";
 import { t } from "@src/shared/i18n/strings";
 
-const TITLE_BY_STAGE: Record<string, string> = {
+type DisplayStepKind = ProcessingStageKind | "valueEstimate";
+type DisplayStepStatus = "pending" | "active" | "complete";
+
+type DisplayStep = {
+  kind: DisplayStepKind;
+  label: string;
+  status: DisplayStepStatus;
+};
+
+const DISPLAY_STAGE_ORDER: DisplayStepKind[] = [
+  "objectRecognition",
+  "conditionAssessment",
+  "priceLookup",
+  "historicalRecords",
+  "valueEstimate"
+];
+
+const TITLE_BY_STAGE: Record<DisplayStepKind, string> = {
   objectRecognition: t("processing.stage.object_recognition"),
   conditionAssessment: t("processing.stage.condition_assessment"),
   priceLookup: t("processing.stage.price_lookup"),
-  historicalRecords: t("processing.stage.historical_records")
+  historicalRecords: t("processing.stage.historical_records"),
+  valueEstimate: t("processing.stage.value_estimate")
 };
 
+const ACTIVE_RING_SIZE = 16;
+const ACTIVE_DOT_SIZE = 8;
+
+function deriveSteps(
+  currentStage: ProcessingStageKind | null,
+  progress: number,
+  finalizing: boolean,
+  completed: boolean
+): DisplayStep[] {
+  if (completed) {
+    return DISPLAY_STAGE_ORDER.map((kind) => ({
+      kind,
+      label: TITLE_BY_STAGE[kind],
+      status: "complete"
+    }));
+  }
+
+  if (finalizing) {
+    return DISPLAY_STAGE_ORDER.map((kind) => ({
+      kind,
+      label: TITLE_BY_STAGE[kind],
+      status: kind === "valueEstimate" ? "active" : "complete"
+    }));
+  }
+
+  const activeIndex = currentStage ? DISPLAY_STAGE_ORDER.indexOf(currentStage) : -1;
+
+  return DISPLAY_STAGE_ORDER.map((kind, index) => {
+    let status: DisplayStepStatus = "pending";
+
+    if (kind === "valueEstimate") {
+      if (currentStage === "historicalRecords" && progress >= 1) {
+        status = "active";
+      }
+    } else if (index < activeIndex) {
+      status = "complete";
+    } else if (index === activeIndex) {
+      status = "active";
+    }
+
+    return {
+      kind,
+      label: TITLE_BY_STAGE[kind],
+      status
+    };
+  });
+}
+
+function statusLabel(status: DisplayStepStatus) {
+  if (status === "complete") {
+    return "DONE";
+  }
+
+  if (status === "active") {
+    return "...";
+  }
+
+  return "WAITING";
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export function ProcessingScreen() {
-  const router = useRouter();
+  const { replace, back } = useRouter();
+  const insets = useSafeAreaInsets();
   const { currentSession, setCurrentSession, setLatestResult, setSelectedItem, setSelectedItemID, container } =
     useAppState();
-  const [steps, setSteps] = useState<ProcessingStageSnapshot[]>([
-    { kind: "objectRecognition", status: "pending" },
-    { kind: "conditionAssessment", status: "pending" },
-    { kind: "priceLookup", status: "pending" },
-    { kind: "historicalRecords", status: "pending" }
-  ]);
+  const [currentStage, setCurrentStage] = useState<ProcessingStageKind | null>(null);
+  const [currentProgress, setCurrentProgress] = useState(0);
+  const [finalizing, setFinalizing] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [sourcesLine, setSourcesLine] = useState(t("processing.searching.start"));
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  const resetProgressState = useCallback(() => {
+    setCurrentStage(null);
+    setCurrentProgress(0);
+    setFinalizing(false);
+    setCompleted(false);
+    setSourcesLine(t("processing.searching.start"));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+
+    const finishWithResult = async (result: ScanResult) => {
+      setFinalizing(true);
+      await wait(280);
+
+      if (cancelled) {
+        return;
+      }
+
+      setCompleted(true);
+      await wait(180);
+
+      if (cancelled) {
+        return;
+      }
+
+      setLatestResult(result);
+      setSelectedItem({
+        id: result.id,
+        title: result.name,
+        subtitle: result.origin ?? t("common.unknown_origin"),
+        categoryText: result.category,
+        valueText: `${result.priceData?.mid ?? 0}`,
+        timestampText: result.scannedAt,
+        noteText: result.historySummary,
+        thumbnailText: result.name.slice(0, 2).toUpperCase(),
+        photoUri: currentSession?.capturedImages[0]?.uri
+      });
+      setSelectedItemID(result.id);
+      await setCurrentSession(null);
+      replace({
+        pathname: "/result/[resultId]",
+        params: { resultId: result.id }
+      });
+    };
 
     const run = async () => {
       if (!currentSession) {
         return;
       }
 
-      for await (const update of container.scanProcessingPipeline.process(currentSession)) {
+      resetProgressState();
+
+      try {
+        for await (const update of container.scanOrchestrator.process(currentSession)) {
+          if (cancelled) {
+            break;
+          }
+
+          if (update.stage) {
+            setCurrentStage(update.stage);
+            setCurrentProgress(update.progress);
+          }
+
+          if (update.currentSearchSource) {
+            setSourcesLine(update.currentSearchSource);
+          }
+
+          if (update.completedResult) {
+            await finishWithResult(update.completedResult);
+            return;
+          }
+        }
+      } catch (error) {
         if (cancelled) {
-          break;
+          return;
         }
 
-        if (update.snapshots) {
-          setSteps(update.snapshots);
-        }
-
-        if (update.searchingSource) {
-          setSourcesLine(update.searchingSource);
-        }
-
-        if (update.completedResult) {
-          setLatestResult(update.completedResult);
-          setSelectedItem({
-            id: update.completedResult.id,
-            title: update.completedResult.name,
-            subtitle: update.completedResult.origin ?? t("common.unknown_origin"),
-            categoryText: update.completedResult.category,
-            valueText: `${update.completedResult.priceData?.mid ?? 0}`,
-            timestampText: update.completedResult.scannedAt,
-            noteText: update.completedResult.historySummary,
-            thumbnailText: update.completedResult.name.slice(0, 2).toUpperCase(),
-            photoUri: currentSession.capturedImages[0]?.uri
-          });
-          setSelectedItemID(update.completedResult.id);
-          router.replace(`/result/${update.completedResult.id}`);
-        }
+        performanceMonitor.captureError(error, {
+          area: "processing.screen",
+          mode: currentSession.mode
+        });
+        setLatestResult(null);
+        setSelectedItem(null);
+        setSelectedItemID(null);
+        setSourcesLine(t("processing.searching.failed"));
+        Alert.alert(t("processing.error.title"), t("processing.error.message"), [
+          {
+            text: t("common.retry"),
+            onPress: () => {
+              setRetryNonce((value) => value + 1);
+            }
+          },
+          { text: t("common.back"), style: "cancel", onPress: () => back() }
+        ]);
       }
     };
 
@@ -82,98 +226,395 @@ export function ProcessingScreen() {
     return () => {
       cancelled = true;
     };
-  }, [container.scanProcessingPipeline, currentSession, router, setLatestResult, setSelectedItem, setSelectedItemID]);
+  }, [
+    container.scanOrchestrator,
+    currentSession,
+    resetProgressState,
+    back,
+    replace,
+    retryNonce,
+    setCurrentSession,
+    setLatestResult,
+    setSelectedItem,
+    setSelectedItemID
+  ]);
 
   const retake = async () => {
     await setCurrentSession(null);
     setLatestResult(null);
     setSelectedItem(null);
     setSelectedItemID(null);
-    router.replace("/(tabs)/scan");
+    replace("/scan");
   };
+
+  const steps = useMemo(
+    () => deriveSteps(currentStage, currentProgress, finalizing, completed),
+    [completed, currentProgress, currentStage, finalizing]
+  );
 
   const previewUri = currentSession?.capturedImages[0]?.uri;
 
-  return (
-    <Screen testID="processing.screen">
-      <View style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: 20, paddingBottom: 140, gap: spacing.lg }}>
-        <ScreenHeader
-          title={t("processing.title")}
-          leftAction={
-            <HeaderAction
-              icon="chevron-back"
-              onPress={() => {
-                void retake();
-              }}
-              testID="processing.backButton"
-            />
-          }
-          testID="processing.headerTitle"
-        />
-
-        {currentSession ? (
-          <>
-            <Panel>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <SectionLabel>{t("processing.capture.section")}</SectionLabel>
-                <View style={{ flex: 1 }} />
-                <Text
-                  onPress={() => {
-                    void retake();
-                  }}
-                  style={[textStyles.micro, { color: colors.foregroundSubtle }]}
-                  testID="processing.retakeButton"
-                >
-                  {t("common.retake")}
-                </Text>
-              </View>
-
-              {previewUri ? (
-                <Image
-                  source={{ uri: previewUri }}
-                  style={{ width: "100%", height: 260, borderWidth: 1, borderColor: colors.borderDefault }}
-                  resizeMode="cover"
-                  testID="processing.imagePreview"
-                />
-              ) : null}
-
-              <InfoRow label={t("processing.mode")} value={currentSession.mode.toUpperCase()} />
-              <InfoRow label={t("processing.captures")} value={t("processing.captures.count").replace("%d", String(currentSession.capturedImages.length))} />
-            </Panel>
-
-            <Panel>
-              <SectionLabel>{t("processing.section")}</SectionLabel>
-              {steps.map((step) => (
-                <ProgressRow
-                  key={step.kind}
-                  title={TITLE_BY_STAGE[step.kind]}
-                  status={step.status}
-                  testID={`processing.step.${step.kind}`}
-                />
-              ))}
-            </Panel>
-          </>
-        ) : (
-          <EmptyState
-            title={t("processing.empty.title")}
-            message={t("processing.empty.message")}
-            actionTitle={t("common.retake")}
-            onAction={() => {
+  if (!currentSession) {
+    return (
+      <Screen testID="processing.screen">
+        <View style={styles.emptyRoot}>
+          <Text style={styles.emptyTitle}>{t("processing.empty.title")}</Text>
+          <Text style={styles.emptyMessage}>{t("processing.empty.message")}</Text>
+          <Pressable
+            onPress={() => {
               void retake();
             }}
-            testID="processing.emptyState"
-          />
-        )}
-      </View>
+            style={styles.emptyButton}
+            testID="processing.retakeButton"
+          >
+            <Text style={styles.emptyButtonText}>{t("common.retake")}</Text>
+          </Pressable>
+        </View>
+      </Screen>
+    );
+  }
 
-      <StickyActionBar>
-        <Text
-          style={[textStyles.micro, { color: colors.foregroundSubtle, textAlign: "center" }]}
-          testID="processing.sourcesLine"
-        >
-          {sourcesLine}
-        </Text>
-      </StickyActionBar>
+  return (
+    <Screen testID="processing.screen">
+      <View style={styles.screen}>
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => {
+              void retake();
+            }}
+            style={styles.backButton}
+            testID="processing.backButton"
+          >
+            <Ionicons color={colors.foreground} name="arrow-back" size={20} />
+          </Pressable>
+          <Text style={styles.topTitle} testID="processing.headerTitle">
+            {t("processing.title")}
+          </Text>
+          <View style={styles.topSpacer} />
+        </View>
+
+        <View style={styles.previewWrap}>
+          {previewUri ? (
+            <Image
+              source={{ uri: previewUri }}
+              style={styles.previewImage}
+              resizeMode="cover"
+              testID="processing.imagePreview"
+            />
+          ) : (
+            <View style={[styles.previewImage, styles.previewFallback]} testID="processing.imagePreview" />
+          )}
+        </View>
+
+        <View style={styles.previewOverlay}>
+          <Text style={styles.previewLabel}>{t("processing.capture.section")}</Text>
+          <Pressable
+            onPress={() => {
+              void retake();
+            }}
+            testID="processing.retakeButton"
+          >
+            <Text style={styles.previewRetake}>{t("common.retake")}</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.stageSection}>
+          <Text style={styles.stageTitle}>{t("processing.section")}</Text>
+          <View style={styles.divider} />
+          {steps.map((step, index) => (
+            <React.Fragment key={step.kind}>
+              <ProcessingStepRow
+                title={step.label}
+                status={step.status}
+                testID={
+                  step.kind === "valueEstimate"
+                    ? "processing.step.valueEstimate"
+                    : `processing.step.${step.kind}`
+                }
+              />
+              {index < steps.length - 1 ? <View style={styles.divider} /> : null}
+            </React.Fragment>
+          ))}
+        </View>
+
+        <View style={[styles.sourceBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <Text style={styles.sourceLabel}>SEARCHING:</Text>
+          <Text style={styles.sourceTicker} numberOfLines={1} testID="processing.sourcesLine">
+            {sourcesLine}
+          </Text>
+        </View>
+      </View>
     </Screen>
   );
 }
+
+function ProcessingStepRow({
+  title,
+  status,
+  testID
+}: {
+  title: string;
+  status: DisplayStepStatus;
+  testID?: string;
+}) {
+  return (
+    <View style={styles.stepRow} testID={testID}>
+      <View style={styles.stepLeft}>
+        <StepIndicator status={status} />
+        <Text style={[styles.stepText, status === "pending" && styles.stepTextPending]}>{title}</Text>
+      </View>
+      <Text
+        style={[
+          styles.stepStatus,
+          status === "complete" && styles.stepStatusComplete,
+          status === "pending" && styles.stepStatusPending
+        ]}
+      >
+        {statusLabel(status)}
+      </Text>
+    </View>
+  );
+}
+
+function StepIndicator({ status }: { status: DisplayStepStatus }) {
+  const pulse = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    if (status !== "active") {
+      pulse.stopAnimation();
+      pulse.setValue(0.35);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 850,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.35,
+          duration: 850,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true
+        })
+      ])
+    );
+
+    loop.start();
+
+    return () => {
+      loop.stop();
+    };
+  }, [pulse, status]);
+
+  if (status === "active") {
+    return (
+      <View style={styles.activeIndicatorWrap}>
+        <Animated.View style={[styles.activeIndicatorRing, { opacity: pulse }]} />
+        <View style={styles.activeIndicatorDot} />
+      </View>
+    );
+  }
+
+  return <View style={[styles.dot, status === "complete" ? styles.dotComplete : styles.dotPending]} />;
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background
+  },
+  topBar: {
+    height: 52,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  backButton: {
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  topTitle: {
+    color: colors.foreground,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 3
+  },
+  topSpacer: {
+    width: 20,
+    height: 20
+  },
+  previewWrap: {
+    width: "100%",
+    height: 280,
+    backgroundColor: "#050505"
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%"
+  },
+  previewFallback: {
+    backgroundColor: "#111111"
+  },
+  previewOverlay: {
+    height: 36,
+    backgroundColor: colors.background,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  previewLabel: {
+    color: "#444444",
+    fontSize: 9,
+    fontWeight: "600",
+    letterSpacing: 2
+  },
+  previewRetake: {
+    color: colors.foreground,
+    fontSize: 9,
+    fontWeight: "600",
+    letterSpacing: 2
+  },
+  stageSection: {
+    flex: 1,
+    paddingTop: 24,
+    paddingHorizontal: 24
+  },
+  stageTitle: {
+    color: "#444444",
+    fontSize: 9,
+    fontWeight: "600",
+    letterSpacing: 3,
+    marginBottom: 18
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#1A1A1A"
+  },
+  stepRow: {
+    height: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  stepLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999
+  },
+  dotComplete: {
+    backgroundColor: colors.foreground
+  },
+  dotPending: {
+    backgroundColor: "#333333"
+  },
+  activeIndicatorWrap: {
+    width: ACTIVE_RING_SIZE,
+    height: ACTIVE_RING_SIZE,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  activeIndicatorRing: {
+    position: "absolute",
+    width: ACTIVE_RING_SIZE,
+    height: ACTIVE_RING_SIZE,
+    borderRadius: 999,
+    borderWidth: 4,
+    borderColor: "#333333"
+  },
+  activeIndicatorDot: {
+    width: ACTIVE_DOT_SIZE,
+    height: ACTIVE_DOT_SIZE,
+    borderRadius: 999,
+    backgroundColor: colors.foreground
+  },
+  stepText: {
+    color: colors.foreground,
+    fontSize: 13,
+    fontWeight: "400"
+  },
+  stepTextPending: {
+    color: "#444444"
+  },
+  stepStatus: {
+    color: "#888888",
+    fontSize: 12,
+    fontWeight: "400"
+  },
+  stepStatusComplete: {
+    color: "#444444",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 2
+  },
+  stepStatusPending: {
+    color: "#333333",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 2
+  },
+  sourceBar: {
+    height: 44,
+    backgroundColor: "#0A0A0A",
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  sourceLabel: {
+    color: "#444444",
+    fontSize: 9,
+    fontWeight: "600",
+    letterSpacing: 2
+  },
+  sourceTicker: {
+    flex: 1,
+    color: colors.foreground,
+    fontSize: 9,
+    fontWeight: "400"
+  },
+  emptyRoot: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    gap: 12
+  },
+  emptyTitle: {
+    color: colors.foreground,
+    fontSize: 18,
+    fontWeight: "700"
+  },
+  emptyMessage: {
+    color: colors.foregroundSubtle,
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20
+  },
+  emptyButton: {
+    marginTop: 8,
+    width: 180,
+    height: 48,
+    backgroundColor: colors.foreground,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  emptyButtonText: {
+    color: colors.inverseForeground,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 1
+  }
+});

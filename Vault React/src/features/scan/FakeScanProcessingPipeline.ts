@@ -5,6 +5,7 @@ import type {
   ProcessingUpdate,
   TemporaryScanSession
 } from "@src/domain/models";
+import type { ScanProgressUpdate } from "@src/domain/services";
 import { t } from "@src/shared/i18n/strings";
 
 const STAGES: ProcessingStageKind[] = [
@@ -21,6 +22,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+type LegacyCompatibleScanProgressUpdate = ScanProgressUpdate & ProcessingUpdate;
+
+function buildSnapshots(
+  stages: ProcessingStageKind[],
+  activeIndex: number | null,
+  completedIndexes: Set<number>
+): ProcessingStageSnapshot[] {
+  return stages.map((kind, index) => ({
+    kind,
+    status: completedIndexes.has(index) ? "complete" : activeIndex === index ? "active" : "pending"
+  }));
+}
+
 export class FakeScanProcessingPipeline implements ScanProcessingPipeline {
   constructor(
     private readonly resultFactory: MockScanResultFactory,
@@ -28,27 +42,55 @@ export class FakeScanProcessingPipeline implements ScanProcessingPipeline {
     private readonly interStageDelayMs = 250
   ) {}
 
-  async *process(session: TemporaryScanSession): AsyncGenerator<ProcessingUpdate, void, void> {
+  async *process(session: TemporaryScanSession): AsyncGenerator<LegacyCompatibleScanProgressUpdate, void, unknown> {
     const sources = session.mode === "mystery" ? MYSTERY_SOURCES : STANDARD_SOURCES;
-    const snapshots: ProcessingStageSnapshot[] = STAGES.map((kind) => ({ kind, status: "pending" }));
+    const completedIndexes = new Set<number>();
+    const pendingSnapshots = buildSnapshots(STAGES, null, completedIndexes);
 
-    yield { snapshots };
-    yield { searchingSource: `${t("processing.searching.format").replace("%s", sources[0])}` };
+    yield {
+      stage: STAGES[0],
+      progress: 0,
+      snapshots: pendingSnapshots
+    };
+    yield {
+      stage: STAGES[0],
+      progress: 0,
+      currentSearchSource: `${t("processing.searching.format").replace("%s", sources[0])}`,
+      searchingSource: `${t("processing.searching.format").replace("%s", sources[0])}`
+    };
 
     for (let index = 0; index < STAGES.length; index += 1) {
-      snapshots[index] = { kind: STAGES[index], status: "active" };
-      yield { snapshots: [...snapshots], searchingSource: `${t("processing.searching.format").replace("%s", sources[index])}` };
+      const activeSnapshots = buildSnapshots(STAGES, index, completedIndexes);
+      const currentSearchSource = `${t("processing.searching.format").replace("%s", sources[index])}`;
+
+      yield {
+        stage: STAGES[index],
+        progress: index / STAGES.length,
+        currentSearchSource,
+        snapshots: activeSnapshots,
+        searchingSource: currentSearchSource
+      };
 
       await sleep(this.stageDelayMs);
 
-      snapshots[index] = { kind: STAGES[index], status: "complete" };
-      yield { snapshots: [...snapshots] };
+      completedIndexes.add(index);
+      const completedSnapshots = buildSnapshots(STAGES, null, completedIndexes);
+
+      yield {
+        stage: STAGES[index],
+        progress: (index + 1) / STAGES.length,
+        snapshots: completedSnapshots
+      };
 
       if (index < STAGES.length - 1) {
         await sleep(this.interStageDelayMs);
       }
     }
 
-    yield { completedResult: this.resultFactory.buildResult(session) };
+    yield {
+      stage: STAGES[STAGES.length - 1],
+      progress: 1,
+      completedResult: this.resultFactory.buildResult(session)
+    };
   }
 }

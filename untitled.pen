@@ -1,5 +1,5 @@
 {
-  "version": "2.9",
+  "version": "2.10",
   "children": [
     {
       "type": "frame",
@@ -34,35 +34,6 @@
               "fontFamily": "Inter",
               "fontSize": 15,
               "fontWeight": "600"
-            },
-            {
-              "type": "frame",
-              "id": "ANMk6",
-              "name": "statusIcons",
-              "gap": 6,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "text",
-                  "id": "8rYue",
-                  "name": "sigIcon",
-                  "fill": "#FFFFFF",
-                  "content": "▪▪▪",
-                  "fontFamily": "Inter",
-                  "fontSize": 10,
-                  "fontWeight": "normal"
-                },
-                {
-                  "type": "text",
-                  "id": "yFAvF",
-                  "name": "batIcon",
-                  "fill": "#FFFFFF",
-                  "content": "▮",
-                  "fontFamily": "Inter",
-                  "fontSize": 13,
-                  "fontWeight": "normal"
-                }
-              ]
             }
           ]
         },
@@ -97,25 +68,6 @@
                   "fontSize": 13,
                   "fontWeight": "700",
                   "letterSpacing": 3
-                },
-                {
-                  "type": "frame",
-                  "id": "DHcEI",
-                  "name": "headerRight",
-                  "gap": 16,
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon_font",
-                      "id": "ucFMw",
-                      "name": "settingsBtn",
-                      "width": 20,
-                      "height": 20,
-                      "iconFontName": "settings",
-                      "iconFontFamily": "lucide",
-                      "fill": "#FFFFFF"
-                    }
-                  ]
                 }
               ]
             },
@@ -145,7 +97,7 @@
                   "id": "G6AL7",
                   "name": "valueLabel",
                   "fill": "#444444",
-                  "content": "ESTIMATED TOTAL",
+                  "content": "TOTAL ESTIMATED ITEMS",
                   "fontFamily": "Inter",
                   "fontSize": 10,
                   "fontWeight": "600",
@@ -200,7 +152,7 @@
                   "type": "frame",
                   "id": "8nK9g",
                   "name": "Scan Button",
-                  "width": 200,
+                  "width": 240,
                   "height": 56,
                   "fill": "#FFFFFF",
                   "gap": 10,
@@ -288,7 +240,7 @@
                       "stroke": {
                         "align": "inside",
                         "thickness": 1,
-                        "fill": "#333333"
+                        "fill": "#ffffffff"
                       },
                       "layout": "vertical",
                       "gap": 3,
@@ -303,7 +255,7 @@
                           "type": "text",
                           "id": "Iwicl",
                           "name": "modeBText",
-                          "fill": "#555555",
+                          "fill": "#ffffffff",
                           "content": "MYSTERY",
                           "fontFamily": "Inter",
                           "fontSize": 9,
@@ -314,7 +266,7 @@
                           "type": "text",
                           "id": "RhhTd",
                           "name": "mystSub1",
-                          "fill": "#333333",
+                          "fill": "#ffffffff",
                           "textGrowth": "fixed-width",
                           "width": "fill_container",
                           "content": "Unknown flea market finds",
@@ -610,6 +562,7 @@
           "type": "frame",
           "id": "Gd8uM",
           "name": "Tab Bar",
+          "reusable": true,
           "width": "fill_container",
           "height": 83,
           "padding": [
@@ -786,6 +739,7 @@
       "x": 450,
       "y": 0,
       "name": "2 — Camera Scan",
+      "reusable": true,
       "width": 390,
       "height": 844,
       "fill": "#000000",
@@ -837,16 +791,6 @@
               "fontFamily": "Inter",
               "fontSize": 15,
               "fontWeight": "600"
-            },
-            {
-              "type": "text",
-              "id": "KysNr",
-              "name": "camBat",
-              "fill": "#FFFFFF",
-              "content": "▮",
-              "fontFamily": "Inter",
-              "fontSize": 13,
-              "fontWeight": "normal"
             }
           ]
         },
@@ -870,12 +814,33 @@
               "type": "icon_font",
               "id": "Mt7wQ",
               "name": "closeBtn",
-              "width": 22,
-              "height": 22,
-              "iconFontName": "x",
+              "reusable": true,
+              "rotation": 0.216093192059253,
+              "width": 35,
+              "height": 35,
+              "iconFontName": "arrow-left",
               "iconFontFamily": "lucide",
-              "fill": "#FFFFFF"
-            },
+              "fill": "#ffffffff"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "PCjT6",
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 598,
+          "name": "Bottom Controls",
+          "width": 390,
+          "height": 246,
+          "layout": "vertical",
+          "gap": 16,
+          "padding": [
+            0,
+            24
+          ],
+          "alignItems": "center",
+          "children": [
             {
               "type": "frame",
               "id": "0jnnE",
@@ -949,7 +914,7 @@
                       "type": "text",
                       "id": "RwX0Y",
                       "name": "camModeBText",
-                      "fill": "#888888",
+                      "fill": "#ffffffff",
                       "content": "MYSTERY",
                       "fontFamily": "Inter",
                       "fontSize": 9,
@@ -960,7 +925,7 @@
                       "type": "text",
                       "id": "TGOB7",
                       "name": "mystSub2",
-                      "fill": "#555555",
+                      "fill": "#ffffffff",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
                       "content": "Unknown flea market finds",
@@ -973,87 +938,7 @@
                   ]
                 }
               ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "1EGO3",
-          "layoutPosition": "absolute",
-          "x": 75,
-          "y": 240,
-          "name": "Scan Guide",
-          "width": 240,
-          "height": 240,
-          "fill": "#00000000",
-          "stroke": {
-            "align": "center",
-            "thickness": 1,
-            "fill": "#FFFFFF"
-          }
-        },
-        {
-          "type": "frame",
-          "id": "iFu1B",
-          "layoutPosition": "absolute",
-          "x": 75,
-          "y": 240,
-          "name": "cornerTL",
-          "width": 20,
-          "height": 20,
-          "fill": "#00000000",
-          "stroke": {
-            "align": "inside",
-            "thickness": 2,
-            "fill": "#FFFFFF"
-          }
-        },
-        {
-          "type": "frame",
-          "id": "BoXbS",
-          "layoutPosition": "absolute",
-          "x": 295,
-          "y": 240,
-          "name": "cornerTR",
-          "width": 20,
-          "height": 20,
-          "fill": "#00000000",
-          "stroke": {
-            "align": "inside",
-            "thickness": 2,
-            "fill": "#FFFFFF"
-          }
-        },
-        {
-          "type": "text",
-          "id": "JUsU1",
-          "layoutPosition": "absolute",
-          "x": 80,
-          "y": 502,
-          "name": "hintText",
-          "fill": "#AAAAAA",
-          "content": "CENTER ITEM WITHIN FRAME",
-          "fontFamily": "Inter",
-          "fontSize": 9,
-          "fontWeight": "600",
-          "letterSpacing": 3
-        },
-        {
-          "type": "frame",
-          "id": "PCjT6",
-          "layoutPosition": "absolute",
-          "x": 0,
-          "y": 720,
-          "name": "Bottom Controls",
-          "width": 390,
-          "layout": "vertical",
-          "gap": 16,
-          "padding": [
-            0,
-            24
-          ],
-          "alignItems": "center",
-          "children": [
+            },
             {
               "type": "text",
               "id": "rGfaa",
@@ -1154,6 +1039,40 @@
                   ]
                 }
               ]
+            },
+            {
+              "type": "frame",
+              "id": "n5Nwq",
+              "name": "Scan Button",
+              "width": 348,
+              "height": 56,
+              "fill": "#FFFFFF",
+              "gap": 10,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "JLFin",
+                  "name": "scanBtnIcon",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "scan",
+                  "iconFontFamily": "lucide",
+                  "fill": "#000000"
+                },
+                {
+                  "type": "text",
+                  "id": "xHuMM",
+                  "name": "scanBtnText",
+                  "fill": "#000000",
+                  "content": "ANALYSE",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "700",
+                  "letterSpacing": 2
+                }
+              ]
             }
           ]
         }
@@ -1192,16 +1111,6 @@
               "fontFamily": "Inter",
               "fontSize": 15,
               "fontWeight": "600"
-            },
-            {
-              "type": "text",
-              "id": "WIywp",
-              "name": "pBat",
-              "fill": "#FFFFFF",
-              "content": "▮",
-              "fontFamily": "Inter",
-              "fontSize": 13,
-              "fontWeight": "normal"
             }
           ]
         },
@@ -1253,7 +1162,7 @@
           "id": "1DcOe",
           "name": "photoPreview",
           "width": "fill_container",
-          "height": 280,
+          "height": 346,
           "fill": {
             "type": "image",
             "enabled": true,
@@ -1263,47 +1172,10 @@
         },
         {
           "type": "frame",
-          "id": "b3ExN",
-          "name": "photoOverlay",
-          "width": "fill_container",
-          "height": 36,
-          "fill": "#000000",
-          "padding": [
-            0,
-            24
-          ],
-          "justifyContent": "space_between",
-          "alignItems": "center",
-          "children": [
-            {
-              "type": "text",
-              "id": "1tU7P",
-              "name": "photoLabel",
-              "fill": "#444444",
-              "content": "SCANNED IMAGE",
-              "fontFamily": "Inter",
-              "fontSize": 9,
-              "fontWeight": "600",
-              "letterSpacing": 2
-            },
-            {
-              "type": "text",
-              "id": "qxXNj",
-              "name": "photoRetake",
-              "fill": "#FFFFFF",
-              "content": "RETAKE",
-              "fontFamily": "Inter",
-              "fontSize": 9,
-              "fontWeight": "600",
-              "letterSpacing": 2
-            }
-          ]
-        },
-        {
-          "type": "frame",
           "id": "WWU0s",
           "name": "stageSec",
           "width": "fill_container",
+          "height": 346,
           "layout": "vertical",
           "padding": [
             24,
@@ -1311,6 +1183,7 @@
             0,
             24
           ],
+          "justifyContent": "end",
           "children": [
             {
               "type": "text",
@@ -1488,13 +1361,14 @@
                 },
                 {
                   "type": "text",
-                  "id": "VPH2S",
-                  "name": "stage3Status",
-                  "fill": "#888888",
-                  "content": "...",
+                  "id": "XMjki",
+                  "name": "stage4Status",
+                  "fill": "#333333",
+                  "content": "IN PROGRESS",
                   "fontFamily": "Inter",
-                  "fontSize": 12,
-                  "fontWeight": "normal"
+                  "fontSize": 9,
+                  "fontWeight": "700",
+                  "letterSpacing": 2
                 }
               ]
             },
@@ -1554,43 +1428,55 @@
                   "letterSpacing": 2
                 }
               ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "OPisZ",
-          "name": "sourceBar",
-          "width": "fill_container",
-          "height": 44,
-          "fill": "#0A0A0A",
-          "gap": 10,
-          "padding": [
-            0,
-            24
-          ],
-          "alignItems": "center",
-          "children": [
-            {
-              "type": "text",
-              "id": "oHFgU",
-              "name": "sourceLabel",
-              "fill": "#444444",
-              "content": "SEARCHING:",
-              "fontFamily": "Inter",
-              "fontSize": 9,
-              "fontWeight": "600",
-              "letterSpacing": 2
             },
             {
-              "type": "text",
-              "id": "o0ppo",
-              "name": "sourceTicker",
-              "fill": "#FFFFFF",
-              "content": "eBay · Christie's · Sotheby's · WorthPoint",
-              "fontFamily": "Inter",
-              "fontSize": 9,
-              "fontWeight": "normal"
+              "type": "frame",
+              "id": "oDY6o",
+              "name": "stage4",
+              "width": "fill_container",
+              "height": 56,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hdf1a",
+                  "name": "stage4Left",
+                  "gap": 14,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "WKIp5",
+                      "name": "stage4Dot",
+                      "fill": "#333333",
+                      "width": 8,
+                      "height": 8
+                    },
+                    {
+                      "type": "text",
+                      "id": "PY6SQ",
+                      "name": "stage4Text",
+                      "fill": "#444444",
+                      "content": "Auction databases",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "D3bxU",
+                  "name": "stage4Status",
+                  "fill": "#333333",
+                  "content": "WAITING",
+                  "fontFamily": "Inter",
+                  "fontSize": 9,
+                  "fontWeight": "700",
+                  "letterSpacing": 2
+                }
+              ]
             }
           ]
         }

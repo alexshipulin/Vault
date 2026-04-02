@@ -8,6 +8,7 @@ type ExtraConfig = {
   firebaseAppId?: string;
   firebaseMessagingSenderId?: string;
   geminiApiKey?: string;
+  geminiModel?: string;
   vaultEnvironment?: string;
   vaultSeedData?: string;
   vaultFastProcessing?: string;
@@ -15,6 +16,7 @@ type ExtraConfig = {
   vaultSkipOnboarding?: string;
   vaultRemoteBackend?: string;
   vaultForceMockCamera?: string;
+  vaultDebugSinkUrl?: string;
 };
 
 function getExtraConfig(): ExtraConfig {
@@ -44,9 +46,11 @@ export const AppConfig = {
     messagingSenderId: optionalEnv(getExtraConfig().firebaseMessagingSenderId)
   },
   geminiApiKey: optionalEnv(getExtraConfig().geminiApiKey),
+  geminiModel: optionalEnv(getExtraConfig().geminiModel),
+  debugSinkUrl: optionalEnv(getExtraConfig().vaultDebugSinkUrl),
   vaultEnvironment: getExtraConfig().vaultEnvironment === "production" ? "production" : "mock",
   flags: {
-    seedData: asBool(getExtraConfig().vaultSeedData, true),
+    seedData: asBool(getExtraConfig().vaultSeedData),
     fastProcessing: asBool(getExtraConfig().vaultFastProcessing),
     clearData: asBool(getExtraConfig().vaultClearData),
     skipOnboarding: asBool(getExtraConfig().vaultSkipOnboarding, true),
@@ -55,14 +59,26 @@ export const AppConfig = {
   }
 } as const;
 
+export function getRemoteReadinessStatus(): {
+  isReady: boolean;
+  missingConfig: string[];
+} {
+  const missing: string[] = [];
+
+  if (!AppConfig.firebase.apiKey) missing.push("Firebase API Key");
+  if (!AppConfig.firebase.projectId) missing.push("Firebase Project ID");
+  if (!AppConfig.firebase.authDomain) missing.push("Firebase Auth Domain");
+  if (!AppConfig.firebase.storageBucket) missing.push("Firebase Storage Bucket");
+  if (!AppConfig.firebase.appId) missing.push("Firebase App ID");
+  if (!AppConfig.firebase.messagingSenderId) missing.push("Firebase Messaging Sender ID");
+  if (!AppConfig.geminiApiKey) missing.push("Gemini API Key");
+
+  return {
+    isReady: missing.length === 0,
+    missingConfig: missing
+  };
+}
+
 export function hasRemoteConfig(): boolean {
-  return Boolean(
-    AppConfig.firebase.apiKey &&
-      AppConfig.firebase.projectId &&
-      AppConfig.firebase.authDomain &&
-      AppConfig.firebase.storageBucket &&
-      AppConfig.firebase.appId &&
-      AppConfig.firebase.messagingSenderId &&
-      AppConfig.geminiApiKey
-  );
+  return getRemoteReadinessStatus().isReady;
 }

@@ -2,12 +2,18 @@ import "react-native-reanimated";
 
 import { Stack } from "expo-router";
 
-import { AppProvider } from "@src/app/AppProvider";
+import { AppProvider } from "@src/core/app/AppProvider";
+import { colors } from "@src/shared/design-system/tokens";
 
 export default function RootLayout() {
   return (
     <AppProvider>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="processing" />
         <Stack.Screen name="result/[resultId]" />

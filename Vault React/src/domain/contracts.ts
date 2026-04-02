@@ -11,6 +11,7 @@ import type {
   TemporaryScanSession,
   VaultUserPreferences
 } from "@src/domain/models";
+import type { ScanOrchestrator } from "@src/domain/services";
 
 export interface CollectionRepository {
   fetchAll(): Promise<CollectibleItem[]>;
@@ -56,9 +57,8 @@ export interface ChatResponseGenerator {
   response(message: string, context: ItemChatContext, history: ChatMessage[]): Promise<string>;
 }
 
-export interface CameraService {
-  requestPermission(): Promise<boolean>;
-  captureMockImage(mode: ScanMode): Promise<ScanImage>;
+export interface MockCaptureService {
+  capture(mode: ScanMode): Promise<ScanImage>;
 }
 
 export interface ImagePersistenceService {
@@ -99,9 +99,9 @@ export interface AppContainer {
   preferencesStore: PreferencesStore;
   itemChatSessionStore: ItemChatSessionStore;
   mockScanResultFactory: MockScanResultFactory;
-  scanProcessingPipeline: ScanProcessingPipeline;
+  scanOrchestrator: ScanOrchestrator;
   chatResponseGenerator: ChatResponseGenerator;
-  cameraService: CameraService;
+  mockCaptureService: MockCaptureService;
   imagePersistenceService: ImagePersistenceService;
   profileDataExporter: ProfileDataExporter;
   marketTrendProvider: MarketTrendProvider;

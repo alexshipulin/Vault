@@ -2,7 +2,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
-import { useAppState } from "@src/app/AppProvider";
+import { useAppState } from "@src/core/app/AppProvider";
 import type { CollectibleItem, CollectibleListItem, PreferredCurrency } from "@src/domain/models";
 import {
   EmptyState,
@@ -100,7 +100,10 @@ export function VaultScreen() {
                   onPress={() => {
                     setSelectedItem(item);
                     setSelectedItemID(item.id);
-                    router.push(`/item/${item.id}?source=vault`);
+                    router.push({
+                      pathname: "/item/[itemId]",
+                      params: { itemId: item.id, source: "vault" }
+                    });
                   }}
                   testID={`vault.itemCell.${item.id}`}
                 />
@@ -120,7 +123,7 @@ export function VaultScreen() {
             title={t("vault.empty.title")}
             message={t("vault.empty.message")}
             actionTitle={t("vault.empty.action")}
-            onAction={() => router.navigate("/(tabs)/scan")}
+            onAction={() => router.navigate("/scan")}
             testID="vault.emptyState"
           />
         )}

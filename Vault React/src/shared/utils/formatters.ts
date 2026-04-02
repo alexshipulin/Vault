@@ -98,7 +98,7 @@ export function collectibleListItemFromResult(
   return {
     id: result.id,
     title: result.name,
-    subtitle: result.origin ?? t("common.unknown_origin"),
+    subtitle: result.origin ?? t("common.unknown"),
     categoryText: categoryDisplayName(result.category),
     valueText: formatCurrency(mid, currency),
     timestampText: formatDate(result.scannedAt),
@@ -112,17 +112,18 @@ export function collectibleListItemFromItem(
   currency: PreferredCurrency = "usd"
 ): CollectibleListItem {
   const titleSource = item.name.trim() || categoryDisplayName(item.category);
+  const primaryPhotoUri = item.photoUris.find((uri) => Boolean(uri));
 
   return {
     id: item.id,
-    title: item.name,
-    subtitle: item.origin ?? t("common.unknown_origin"),
+    title: titleSource,
+    subtitle: item.origin ?? t("common.unknown"),
     categoryText: categoryDisplayName(item.category),
     valueText: valueRangeText(item, currency),
     timestampText: formatDate(item.updatedAt),
     noteText: item.historySummary,
     thumbnailText: titleSource.slice(0, 2).toUpperCase(),
-    photoUri: item.photoUris[0]
+    photoUri: primaryPhotoUri
   };
 }
 

@@ -1,4 +1,6 @@
 export type CollectibleCategory = "coin" | "vinyl" | "antique" | "card";
+export type ValuationMode = "standard" | "mystery";
+export type ValuationEvidenceStrength = "weak" | "moderate" | "strong";
 export type OverlayShape = "circle" | "rectangle" | "square";
 export type PriceSource = "pcgs" | "discogs" | "ebay" | "antiqueDB" | "aiEstimate";
 export type VaultEnvironment = "production" | "mock";
@@ -18,6 +20,7 @@ export interface ComparableSale {
   title: string;
   price: number;
   soldAt: string;
+  source?: string | null;
   sourceURL?: string | null;
 }
 
@@ -29,6 +32,19 @@ export interface PriceData {
   source: PriceSource;
   sourceLabel: string;
   fetchedAt: string;
+  valuationConfidence?: number | null;
+  valuationMode?: ValuationMode | null;
+  evidenceStrength?: ValuationEvidenceStrength | null;
+  appliedValueCeiling?: number | null;
+  sourceBreakdown?: {
+    ebay?: number;
+    liveauctioneers?: number;
+    heritage?: number;
+  } | null;
+  matchedSources?: string[];
+  comparableCount?: number;
+  needsReview?: boolean;
+  valuationWarnings?: string[] | null;
   comparables?: ComparableSale[] | null;
 }
 
@@ -62,7 +78,22 @@ export interface CollectibleItem {
   priceMid?: number | null;
   priceHigh?: number | null;
   priceSource?: PriceSource | string | null;
+  sourceLabel?: string | null;
   priceFetchedAt?: string | null;
+  confidence?: number | null;
+  valuationConfidence?: number | null;
+  valuationMode?: ValuationMode | null;
+  evidenceStrength?: ValuationEvidenceStrength | null;
+  appliedValueCeiling?: number | null;
+  sourceBreakdown?: {
+    ebay?: number;
+    liveauctioneers?: number;
+    heritage?: number;
+  } | null;
+  matchedSources?: string[] | null;
+  comparableCount?: number | null;
+  needsReview?: boolean | null;
+  valuationWarnings?: string[] | null;
   historySummary: string;
   addedAt: string;
   updatedAt: string;

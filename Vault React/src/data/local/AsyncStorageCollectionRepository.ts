@@ -1,19 +1,11 @@
 import type { CollectionRepository } from "@src/domain/contracts";
 import type { CollectibleItem } from "@src/domain/models";
-import { seededItems } from "@src/test/fixtures/mockData";
 
 import { readJSON, STORAGE_KEYS, writeJSON } from "./storage";
 
 export class AsyncStorageCollectionRepository implements CollectionRepository {
-  constructor(private readonly seedOnEmpty = false) {}
-
   async fetchAll(): Promise<CollectibleItem[]> {
     const items = await readJSON<CollectibleItem[]>(STORAGE_KEYS.collection, []);
-
-    if (items.length === 0 && this.seedOnEmpty) {
-      await writeJSON(STORAGE_KEYS.collection, seededItems);
-      return [...seededItems];
-    }
 
     return items.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   }

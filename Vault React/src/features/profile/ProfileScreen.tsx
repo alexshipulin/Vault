@@ -2,8 +2,9 @@ import { useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { Alert, Modal, ScrollView, Text, View } from "react-native";
 
-import { useAppState } from "@src/app/AppProvider";
+import { useAppState } from "@src/core/app/AppProvider";
 import type { CollectibleCategory, VaultUserPreferences } from "@src/domain/models";
+import { DebugPanel } from "@src/features/settings/components/DebugPanel";
 import {
   Chip,
   Divider,
@@ -155,6 +156,8 @@ export function ProfileScreen() {
           testID="profile.signOutRow"
         />
       </Panel>
+
+      <DebugPanel />
 
       <SelectionModal
         visible={activeModal === "categories"}

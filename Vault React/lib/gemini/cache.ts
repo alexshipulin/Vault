@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { GeminiCacheEntry, GeminiIdentifyResponse } from "@/lib/gemini/types";
+import type { AppraisalMode } from "@/lib/types";
 
 const CACHE_PREFIX = "vaultscope:gemini:identify";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -31,20 +32,21 @@ function fingerprintImage(base64Image: string): string {
   return hashString(sample);
 }
 
-function buildCacheKey(images: string[], category: string): string {
+function buildCacheKey(images: string[], category: string, appraisalMode: AppraisalMode): string {
   const imageFingerprint = images
     .map((image) => fingerprintImage(image))
     .sort()
     .join("-");
 
-  return `${CACHE_PREFIX}:${category.trim().toLowerCase()}:${imageFingerprint}`;
+  return `${CACHE_PREFIX}:${appraisalMode}:${category.trim().toLowerCase()}:${imageFingerprint}`;
 }
 
 export async function getCachedIdentification(
   images: string[],
   category: string,
+  appraisalMode: AppraisalMode = "standard",
 ): Promise<GeminiIdentifyResponse | null> {
-  const cacheKey = buildCacheKey(images, category);
+  const cacheKey = buildCacheKey(images, category, appraisalMode);
   const rawValue = await AsyncStorage.getItem(cacheKey);
 
   if (!rawValue) {
@@ -70,9 +72,10 @@ export async function getCachedIdentification(
 export async function setCachedIdentification(
   images: string[],
   category: string,
+  appraisalMode: AppraisalMode,
   value: GeminiIdentifyResponse,
 ): Promise<void> {
-  const cacheKey = buildCacheKey(images, category);
+  const cacheKey = buildCacheKey(images, category, appraisalMode);
   const now = Date.now();
   const entry: GeminiCacheEntry<GeminiIdentifyResponse> = {
     value,

@@ -1,0 +1,222 @@
+[
+  {
+    "title": "1909-S VDB Lincoln Cent AU58",
+    "description": "Key-date Lincoln cent with strong detail and original surfaces.",
+    "priceRealized": 1225,
+    "auctionHouse": "Collector Exchange",
+    "saleDate": "2025-11-14",
+    "category": "coin",
+    "source": "starter-seed",
+    "keywords": ["lincoln", "cent", "1909", "vdb", "coin", "penny"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "1909 Lincoln Cent Red Brown Example",
+    "description": "Early Lincoln wheat cent with attractive strike and chocolate-red surfaces.",
+    "priceRealized": 840,
+    "auctionHouse": "Numis House",
+    "saleDate": "2025-09-03",
+    "category": "coin",
+    "source": "starter-seed",
+    "keywords": ["lincoln", "cent", "wheat", "coin", "1909"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Morgan Silver Dollar 1881-S MS64",
+    "description": "Popular silver dollar issue with frosty luster and prooflike appeal.",
+    "priceRealized": 185,
+    "auctionHouse": "Heritage Replica",
+    "saleDate": "2025-08-18",
+    "category": "coin",
+    "source": "starter-seed",
+    "keywords": ["morgan", "silver", "dollar", "coin", "1881"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "1916 Mercury Dime Fine",
+    "description": "Classic early Mercury dime with original toned surfaces.",
+    "priceRealized": 210,
+    "auctionHouse": "Vintage Numismatics",
+    "saleDate": "2025-10-07",
+    "category": "coin",
+    "source": "starter-seed",
+    "keywords": ["mercury", "dime", "coin", "1916", "silver"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Blue Note First Press LP BLP 1588",
+    "description": "Original deep groove jazz pressing with Lexington Avenue label.",
+    "priceRealized": 320,
+    "auctionHouse": "Jazz Vinyl Auctions",
+    "saleDate": "2025-12-01",
+    "category": "vinyl",
+    "source": "starter-seed",
+    "keywords": ["blue", "note", "first", "press", "vinyl", "lp", "jazz"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Blue Note Mono Jazz LP RVG",
+    "description": "Mono pressing with RVG stamp and ear mark in deadwax.",
+    "priceRealized": 275,
+    "auctionHouse": "Prestige Records House",
+    "saleDate": "2025-07-22",
+    "category": "vinyl",
+    "source": "starter-seed",
+    "keywords": ["blue", "note", "mono", "rvg", "vinyl", "record"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Beatles UK First Press Revolver",
+    "description": "Original Parlophone pressing with matrix markings.",
+    "priceRealized": 410,
+    "auctionHouse": "Record Archive",
+    "saleDate": "2025-06-11",
+    "category": "vinyl",
+    "source": "starter-seed",
+    "keywords": ["beatles", "revolver", "first", "press", "vinyl", "record"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Prestige Jazz LP Original Press",
+    "description": "Original pressing with laminated cover and clean labels.",
+    "priceRealized": 190,
+    "auctionHouse": "Wax Market",
+    "saleDate": "2025-05-04",
+    "category": "vinyl",
+    "source": "starter-seed",
+    "keywords": ["prestige", "jazz", "lp", "original", "press", "vinyl"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "1986 Fleer Michael Jordan Rookie Card PSA 7",
+    "description": "Highly collected basketball rookie in mid-grade condition.",
+    "priceRealized": 5400,
+    "auctionHouse": "Card Arena",
+    "saleDate": "2025-11-29",
+    "category": "card",
+    "source": "starter-seed",
+    "keywords": ["jordan", "rookie", "card", "fleer", "1986", "basketball"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "1952 Topps Mantle Reprint Reference Card",
+    "description": "Collector reference example used for comparative card sizing and print notes.",
+    "priceRealized": 95,
+    "auctionHouse": "Sports Card Weekly",
+    "saleDate": "2025-08-30",
+    "category": "card",
+    "source": "starter-seed",
+    "keywords": ["topps", "mantle", "card", "baseball", "1952"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "1933 Goudey Babe Ruth Card Sample",
+    "description": "Vintage baseball card sample from a collector breakup lot.",
+    "priceRealized": 780,
+    "auctionHouse": "Diamond Vintage",
+    "saleDate": "2025-04-18",
+    "category": "card",
+    "source": "starter-seed",
+    "keywords": ["babe", "ruth", "goudey", "card", "baseball", "vintage"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Victorian Silver Tea Caddy",
+    "description": "Antique silver-plated tea caddy with floral repoussé detailing.",
+    "priceRealized": 680,
+    "auctionHouse": "Antique Rooms",
+    "saleDate": "2025-09-25",
+    "category": "antique",
+    "source": "starter-seed",
+    "keywords": ["victorian", "silver", "tea", "caddy", "antique"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Victorian Mahogany Side Table",
+    "description": "Late 19th century antique side table with turned legs and drawer.",
+    "priceRealized": 920,
+    "auctionHouse": "House of Antiques",
+    "saleDate": "2025-07-09",
+    "category": "furniture",
+    "source": "starter-seed",
+    "keywords": ["victorian", "mahogany", "table", "furniture", "antique"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Georgian Oak Cabinet",
+    "description": "18th century oak storage cabinet with original brass pulls.",
+    "priceRealized": 2100,
+    "auctionHouse": "Regional Estate Sales",
+    "saleDate": "2025-03-14",
+    "category": "furniture",
+    "source": "starter-seed",
+    "keywords": ["georgian", "oak", "cabinet", "furniture", "antique"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Edwardian Hall Chair",
+    "description": "Carved antique hall chair with upholstered seat.",
+    "priceRealized": 540,
+    "auctionHouse": "Old World Furnishings",
+    "saleDate": "2025-06-26",
+    "category": "furniture",
+    "source": "starter-seed",
+    "keywords": ["edwardian", "chair", "hall", "furniture", "antique"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Meissen Porcelain Vase",
+    "description": "Hand-painted porcelain vase with crossed swords mark.",
+    "priceRealized": 1560,
+    "auctionHouse": "European Ceramics",
+    "saleDate": "2025-05-19",
+    "category": "ceramics",
+    "source": "starter-seed",
+    "keywords": ["meissen", "porcelain", "vase", "ceramic", "antique"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Chinese Blue and White Charger",
+    "description": "Decorative porcelain charger with cobalt landscape motif.",
+    "priceRealized": 870,
+    "auctionHouse": "Imperial Objects",
+    "saleDate": "2025-10-13",
+    "category": "ceramics",
+    "source": "starter-seed",
+    "keywords": ["chinese", "blue", "white", "charger", "porcelain", "antique"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Oil Painting Portrait on Canvas",
+    "description": "Unsigned antique oil portrait in gilt frame.",
+    "priceRealized": 640,
+    "auctionHouse": "Fine Art Rooms",
+    "saleDate": "2025-02-16",
+    "category": "art",
+    "source": "starter-seed",
+    "keywords": ["oil", "painting", "portrait", "canvas", "art", "antique"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Victorian Mourning Brooch",
+    "description": "Antique brooch with black enamel and gold trim.",
+    "priceRealized": 430,
+    "auctionHouse": "Estate Jewelry Gallery",
+    "saleDate": "2025-08-08",
+    "category": "jewelry",
+    "source": "starter-seed",
+    "keywords": ["victorian", "brooch", "jewelry", "antique", "mourning"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  },
+  {
+    "title": "Antique Brass Telescope",
+    "description": "19th century maritime brass telescope with leather wrap.",
+    "priceRealized": 510,
+    "auctionHouse": "Nautical Antiques",
+    "saleDate": "2025-09-09",
+    "category": "general",
+    "source": "starter-seed",
+    "keywords": ["antique", "brass", "telescope", "maritime", "vintage"],
+    "scrapedAt": "2026-04-01T00:00:00Z"
+  }
+]

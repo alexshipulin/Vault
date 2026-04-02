@@ -1,10 +1,30 @@
 import type { GeminiIdentifyResponse } from "@/lib/gemini/types";
 
+export type AppraisalMode = "standard" | "mystery";
+export type ValuationEvidenceStrength = "weak" | "moderate" | "strong";
+
+export interface PriceSourceBreakdown {
+  ebay: number;
+  liveauctioneers: number;
+  heritage: number;
+}
+
 export interface PriceEstimate {
   low: number | null;
   high: number | null;
   currency: string;
   confidence: number;
+  valuationConfidence?: number;
+  source?: "database" | "aiFallback";
+  sourceLabel?: string | null;
+  matchedSources?: string[];
+  comparableCount?: number;
+  needsReview?: boolean;
+  valuationWarnings?: string[];
+  valuationMode?: AppraisalMode;
+  evidenceStrength?: ValuationEvidenceStrength;
+  appliedValueCeiling?: number | null;
+  sourceBreakdown?: PriceSourceBreakdown;
 }
 
 export interface ScanResult {

@@ -1,22 +1,33 @@
 import { AppConfig } from "@/constants/Config";
 import { getCachedIdentification, setCachedIdentification } from "@/lib/gemini/cache";
-import { buildEmbeddingPrompt, buildIdentificationPrompt } from "@/lib/gemini/prompts";
+import {
+  buildEmbeddingPrompt,
+  buildIdentificationPrompt,
+  buildRepairIdentificationPrompt,
+} from "@/lib/gemini/prompts";
 import { geminiRateLimiter, GeminiRateLimiter } from "@/lib/gemini/rate-limiter";
 import type {
   GeminiCondition,
+  GeminiDescriptionTone,
   GeminiEmbedContentResponse,
   GeminiEmbeddingResponse,
   GeminiGenerateContentResponse,
   GeminiIdentifyResponse,
+  GeminiMarketTier,
+  GeminiPricingEvidenceStrength,
+  GeminiRetailContext,
   GeminiUsageMetadata,
 } from "@/lib/gemini/types";
+import type { AppraisalMode } from "@/lib/types";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const IDENTIFY_MODEL = "gemini-2.0-flash-exp";
+const DEFAULT_IDENTIFY_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 3;
 const ESTIMATED_COST_PER_REQUEST_USD = 0.002;
+const IDENTIFY_MAX_OUTPUT_TOKENS = 1100;
+const PAYLOAD_PREVIEW_LIMIT = 260;
 
 const CONDITION_ORDER: GeminiCondition[] = [
   "poor",
@@ -34,18 +45,39 @@ const IDENTIFY_RESPONSE_SCHEMA = {
     "name",
     "year",
     "origin",
+    "objectType",
+    "material",
+    "makerOrBrand",
     "condition",
     "conditionRange",
     "historySummary",
     "confidence",
     "searchKeywords",
     "distinguishingFeatures",
+    "requiresMeasurements",
+    "requiresMorePhotos",
+    "isLikelyMassProduced",
+    "isLikelyReproduction",
+    "valuationWarnings",
+    "marketTier",
+    "pricingEvidenceStrength",
+    "likelyRetailContext",
+    "likelyValueCeiling",
+    "valuationConfidence",
+    "descriptionTone",
+    "estimatedValueLow",
+    "estimatedValueHigh",
+    "estimatedValueCurrency",
+    "estimatedValueRationale",
   ],
   properties: {
     category: { type: "string" },
     name: { type: "string" },
     year: { type: ["integer", "null"] },
     origin: { type: ["string", "null"] },
+    objectType: { type: ["string", "null"] },
+    material: { type: ["string", "null"] },
+    makerOrBrand: { type: ["string", "null"] },
     condition: {
       type: "string",
       enum: ["mint", "near_mint", "fine", "very_good", "good", "poor"],
@@ -69,18 +101,66 @@ const IDENTIFY_RESPONSE_SCHEMA = {
       type: "array",
       items: { type: "string" },
     },
+    requiresMeasurements: { type: "boolean" },
+    requiresMorePhotos: { type: "boolean" },
+    isLikelyMassProduced: { type: "boolean" },
+    isLikelyReproduction: { type: "boolean" },
+    valuationWarnings: {
+      type: "array",
+      items: { type: "string" },
+    },
+    marketTier: {
+      type: "string",
+      enum: ["junk", "decor", "secondary", "collector", "premium_antique"],
+    },
+    pricingEvidenceStrength: {
+      type: "string",
+      enum: ["weak", "moderate", "strong"],
+    },
+    likelyRetailContext: {
+      type: "string",
+      enum: ["flea_market", "thrift", "estate_sale", "auction"],
+    },
+    likelyValueCeiling: { type: ["number", "null"] },
+    valuationConfidence: { type: "number" },
+    descriptionTone: {
+      type: "string",
+      enum: ["skeptical", "neutral", "collector"],
+    },
+    estimatedValueLow: { type: ["number", "null"] },
+    estimatedValueHigh: { type: ["number", "null"] },
+    estimatedValueCurrency: { type: ["string", "null"] },
+    estimatedValueRationale: { type: ["string", "null"] },
   },
   required: [
     "category",
     "name",
     "year",
     "origin",
+    "objectType",
+    "material",
+    "makerOrBrand",
     "condition",
     "conditionRange",
     "historySummary",
     "confidence",
     "searchKeywords",
     "distinguishingFeatures",
+    "requiresMeasurements",
+    "requiresMorePhotos",
+    "isLikelyMassProduced",
+    "isLikelyReproduction",
+    "valuationWarnings",
+    "marketTier",
+    "pricingEvidenceStrength",
+    "likelyRetailContext",
+    "likelyValueCeiling",
+    "valuationConfidence",
+    "descriptionTone",
+    "estimatedValueLow",
+    "estimatedValueHigh",
+    "estimatedValueCurrency",
+    "estimatedValueRationale",
   ],
 } as const;
 
@@ -110,7 +190,7 @@ function clampConfidence(value: unknown): number {
   return Math.max(0, Math.min(1, value));
 }
 
-function normalizeStringArray(value: unknown): string[] {
+function normalizeStringArray(value: unknown, maxItems = 10): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -122,7 +202,7 @@ function normalizeStringArray(value: unknown): string[] {
         .map((item) => item.trim().toLowerCase())
         .filter(Boolean),
     ),
-  );
+  ).slice(0, maxItems);
 }
 
 function normalizeCondition(value: unknown): GeminiCondition {
@@ -166,6 +246,27 @@ function normalizeYear(value: unknown): number | null {
   return year;
 }
 
+function normalizeEstimatedValue(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  return Math.round(value);
+}
+
+function normalizeCurrencyCode(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
+
 function normalizeNullableString(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -173,6 +274,73 @@ function normalizeNullableString(value: unknown): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function limitSentences(value: string | null, maxSentences: number): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const sentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length <= maxSentences) {
+    return normalized;
+  }
+
+  return sentences.slice(0, maxSentences).join(" ").trim();
+}
+
+function buildPayloadPreview(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length > PAYLOAD_PREVIEW_LIMIT
+    ? `${normalized.slice(0, PAYLOAD_PREVIEW_LIMIT)}…`
+    : normalized;
+}
+
+function normalizeBoolean(value: unknown): boolean {
+  return value === true;
+}
+
+function normalizeMarketTier(value: unknown, appraisalMode: AppraisalMode): GeminiMarketTier {
+  if (
+    value === "junk" ||
+    value === "decor" ||
+    value === "secondary" ||
+    value === "collector" ||
+    value === "premium_antique"
+  ) {
+    return value;
+  }
+
+  return appraisalMode === "mystery" ? "decor" : "secondary";
+}
+
+function normalizePricingEvidenceStrength(value: unknown): GeminiPricingEvidenceStrength {
+  if (value === "weak" || value === "moderate" || value === "strong") {
+    return value;
+  }
+
+  return "weak";
+}
+
+function normalizeRetailContext(value: unknown, appraisalMode: AppraisalMode): GeminiRetailContext {
+  if (value === "flea_market" || value === "thrift" || value === "estate_sale" || value === "auction") {
+    return value;
+  }
+
+  return appraisalMode === "mystery" ? "flea_market" : "auction";
+}
+
+function normalizeDescriptionTone(value: unknown, appraisalMode: AppraisalMode): GeminiDescriptionTone {
+  if (value === "skeptical" || value === "neutral" || value === "collector") {
+    return value;
+  }
+
+  return appraisalMode === "mystery" ? "skeptical" : "neutral";
 }
 
 function ensureMimeType(input: string): { data: string; mimeType: string } {
@@ -211,9 +379,23 @@ function extractResponseText(response: GeminiGenerateContentResponse): string {
   return stripCodeFences(text);
 }
 
-function parseIdentifyResponse(payload: string, requestedCategory: string): GeminiIdentifyResponse {
+function parseIdentifyResponse(
+  payload: string,
+  requestedCategory: string,
+  appraisalMode: AppraisalMode,
+): GeminiIdentifyResponse {
   const parsed = JSON.parse(payload) as Partial<GeminiIdentifyResponse>;
   const condition = normalizeCondition(parsed.condition);
+  const estimatedValueLow = normalizeEstimatedValue(parsed.estimatedValueLow);
+  const estimatedValueHigh = normalizeEstimatedValue(parsed.estimatedValueHigh);
+  const normalizedLow =
+    estimatedValueLow != null && estimatedValueHigh != null
+      ? Math.min(estimatedValueLow, estimatedValueHigh)
+      : estimatedValueLow;
+  const normalizedHigh =
+    estimatedValueLow != null && estimatedValueHigh != null
+      ? Math.max(estimatedValueLow, estimatedValueHigh)
+      : estimatedValueHigh;
   const response: GeminiIdentifyResponse = {
     category:
       typeof parsed.category === "string" && parsed.category.trim().length > 0
@@ -225,6 +407,9 @@ function parseIdentifyResponse(payload: string, requestedCategory: string): Gemi
         : "Unknown item",
     year: normalizeYear(parsed.year),
     origin: normalizeNullableString(parsed.origin),
+    objectType: normalizeNullableString(parsed.objectType),
+    material: normalizeNullableString(parsed.material),
+    makerOrBrand: normalizeNullableString(parsed.makerOrBrand),
     condition,
     conditionRange: normalizeConditionRange(parsed.conditionRange, condition),
     historySummary:
@@ -232,9 +417,27 @@ function parseIdentifyResponse(payload: string, requestedCategory: string): Gemi
         ? parsed.historySummary.trim()
         : "No historical summary available.",
     confidence: clampConfidence(parsed.confidence),
-    searchKeywords: normalizeStringArray(parsed.searchKeywords),
-    distinguishingFeatures: normalizeStringArray(parsed.distinguishingFeatures),
+    searchKeywords: normalizeStringArray(parsed.searchKeywords, 10),
+    distinguishingFeatures: normalizeStringArray(parsed.distinguishingFeatures, 8),
+    requiresMeasurements: normalizeBoolean(parsed.requiresMeasurements),
+    requiresMorePhotos: normalizeBoolean(parsed.requiresMorePhotos),
+    isLikelyMassProduced: normalizeBoolean(parsed.isLikelyMassProduced),
+    isLikelyReproduction: normalizeBoolean(parsed.isLikelyReproduction),
+    valuationWarnings: normalizeStringArray(parsed.valuationWarnings, 5),
+    marketTier: normalizeMarketTier(parsed.marketTier, appraisalMode),
+    pricingEvidenceStrength: normalizePricingEvidenceStrength(parsed.pricingEvidenceStrength),
+    likelyRetailContext: normalizeRetailContext(parsed.likelyRetailContext, appraisalMode),
+    likelyValueCeiling: normalizeEstimatedValue(parsed.likelyValueCeiling),
+    valuationConfidence: clampConfidence(parsed.valuationConfidence),
+    descriptionTone: normalizeDescriptionTone(parsed.descriptionTone, appraisalMode),
+    estimatedValueLow: normalizedLow ?? null,
+    estimatedValueHigh: normalizedHigh ?? null,
+    estimatedValueCurrency: normalizeCurrencyCode(parsed.estimatedValueCurrency),
+    estimatedValueRationale: limitSentences(normalizeNullableString(parsed.estimatedValueRationale), 1),
   };
+
+  response.historySummary =
+    limitSentences(response.historySummary, 2) ?? "No historical summary available.";
 
   if (response.searchKeywords.length === 0) {
     response.searchKeywords = response.name
@@ -266,43 +469,84 @@ function getRetryDelay(attempt: number): number {
   return baseDelay + jitter;
 }
 
+function buildIdentifyModelCandidates(candidates: readonly string[] = []): string[] {
+  const normalized = candidates
+    .map((candidate) => candidate.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([...normalized, ...DEFAULT_IDENTIFY_MODELS]));
+}
+
+function isMissingModelError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("not found") &&
+    (message.includes("supported for generatecontent") || message.includes("models/"))
+  );
+}
+
+function isJsonSyntaxError(error: unknown): error is SyntaxError {
+  return error instanceof SyntaxError;
+}
+
+type GeminiInvalidJsonErrorOptions = {
+  model: string;
+  appraisalMode: AppraisalMode;
+  category: string;
+  payloadPreview: string;
+  cause?: unknown;
+};
+
+export class GeminiInvalidJsonError extends Error {
+  readonly model: string;
+
+  readonly appraisalMode: AppraisalMode;
+
+  readonly category: string;
+
+  readonly payloadPreview: string;
+
+  constructor(options: GeminiInvalidJsonErrorOptions) {
+    super(
+      `Gemini returned invalid JSON for model ${options.model} in ${options.appraisalMode} mode.`,
+    );
+    this.name = "GeminiInvalidJsonError";
+    this.model = options.model;
+    this.appraisalMode = options.appraisalMode;
+    this.category = options.category;
+    this.payloadPreview = options.payloadPreview;
+
+    if (options.cause !== undefined) {
+      (this as Error & { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
+
 export class GeminiClient {
   private readonly apiKey: string;
 
   private readonly rateLimiter: GeminiRateLimiter;
 
-  constructor(options?: { apiKey?: string; rateLimiter?: GeminiRateLimiter }) {
+  private readonly identifyModels: string[];
+
+  constructor(options?: { apiKey?: string; rateLimiter?: GeminiRateLimiter; identifyModels?: string[] }) {
     this.apiKey = options?.apiKey ?? AppConfig.geminiApiKey;
     this.rateLimiter = options?.rateLimiter ?? geminiRateLimiter;
+    this.identifyModels = buildIdentifyModelCandidates(
+      options?.identifyModels ?? (AppConfig.geminiModel ? [AppConfig.geminiModel] : []),
+    );
   }
 
   static validateConfig(): void {
     validateGeminiConfig();
   }
 
-  async identifyItem(
-    images: string[],
-    category: string,
-    ocrText?: string,
-  ): Promise<GeminiIdentifyResponse> {
-    if (!Array.isArray(images) || images.length < 1 || images.length > 2) {
-      throw new Error("identifyItem expects 1 or 2 base64 images.");
-    }
-
-    const normalizedCategory = category.trim().toLowerCase();
-
-    if (!normalizedCategory) {
-      throw new Error("identifyItem requires a category.");
-    }
-
-    const cached = await getCachedIdentification(images, normalizedCategory);
-    if (cached) {
-      console.info("[Gemini] identifyItem cache hit.");
-      return cached;
-    }
-
-    const prompt = buildIdentificationPrompt(normalizedCategory, ocrText);
-    const imageParts = images.map((image) => {
+  private buildImageParts(images: string[]) {
+    return images.map((image) => {
       const { data, mimeType } = ensureMimeType(image);
       return {
         inlineData: {
@@ -311,12 +555,18 @@ export class GeminiClient {
         },
       };
     });
+  }
 
-    const response = await this.requestWithRetries<GeminiGenerateContentResponse>(
+  private async requestIdentifyResponse(
+    model: string,
+    prompt: string,
+    imageParts: Array<{ inlineData: { mimeType: string; data: string } }>,
+  ) {
+    return this.requestWithRetries<GeminiGenerateContentResponse>(
       "identifyItem",
       async () => {
         return this.postJson<GeminiGenerateContentResponse>(
-          `/models/${IDENTIFY_MODEL}:generateContent`,
+          `/models/${model}:generateContent`,
           {
             contents: [
               {
@@ -328,22 +578,123 @@ export class GeminiClient {
               responseMimeType: "application/json",
               responseJsonSchema: IDENTIFY_RESPONSE_SCHEMA,
               temperature: 0.2,
-              maxOutputTokens: 700,
+              maxOutputTokens: IDENTIFY_MAX_OUTPUT_TOKENS,
             },
           },
         );
       },
     );
+  }
 
-    const parsed = parseIdentifyResponse(
-      extractResponseText(response.body),
-      normalizedCategory,
-    );
+  private parseIdentifyPayload(
+    payload: string,
+    requestedCategory: string,
+    appraisalMode: AppraisalMode,
+    model: string,
+  ): GeminiIdentifyResponse {
+    try {
+      return parseIdentifyResponse(payload, requestedCategory, appraisalMode);
+    } catch (error) {
+      if (isJsonSyntaxError(error)) {
+        throw new GeminiInvalidJsonError({
+          model,
+          appraisalMode,
+          category: requestedCategory,
+          payloadPreview: buildPayloadPreview(payload),
+          cause: error,
+        });
+      }
 
-    logUsage("identifyItem", response.body.usageMetadata);
-    await setCachedIdentification(images, normalizedCategory, parsed);
+      throw error;
+    }
+  }
 
-    return parsed;
+  async identifyItem(
+    images: string[],
+    category: string,
+    ocrText?: string,
+    appraisalMode: AppraisalMode = "standard",
+  ): Promise<GeminiIdentifyResponse> {
+    if (!Array.isArray(images) || images.length < 1 || images.length > 3) {
+      throw new Error("identifyItem expects 1 to 3 base64 images.");
+    }
+
+    const normalizedCategory = category.trim().toLowerCase();
+
+    if (!normalizedCategory) {
+      throw new Error("identifyItem requires a category.");
+    }
+
+    const cached = await getCachedIdentification(images, normalizedCategory, appraisalMode);
+    if (cached) {
+      console.info("[Gemini] identifyItem cache hit.");
+      return cached;
+    }
+
+    const prompt = buildIdentificationPrompt(normalizedCategory, ocrText, appraisalMode);
+    const repairPrompt = buildRepairIdentificationPrompt(normalizedCategory, ocrText, appraisalMode);
+    const imageParts = this.buildImageParts(images);
+
+    let lastError: unknown;
+
+    for (const model of this.identifyModels) {
+      try {
+        const response = await this.requestIdentifyResponse(model, prompt, imageParts);
+        const responseText = extractResponseText(response.body);
+        const parsed = this.parseIdentifyPayload(
+          responseText,
+          normalizedCategory,
+          appraisalMode,
+          model,
+        );
+
+        logUsage(`identifyItem model=${model}`, response.body.usageMetadata);
+        await setCachedIdentification(images, normalizedCategory, appraisalMode, parsed);
+
+        return parsed;
+      } catch (error) {
+        lastError = error;
+
+        if (error instanceof GeminiInvalidJsonError) {
+          try {
+            const repairedResponse = await this.requestIdentifyResponse(model, repairPrompt, imageParts);
+            const repairedText = extractResponseText(repairedResponse.body);
+            const repaired = this.parseIdentifyPayload(
+              repairedText,
+              normalizedCategory,
+              appraisalMode,
+              model,
+            );
+
+            logUsage(`identifyItem model=${model} repair`, repairedResponse.body.usageMetadata);
+            await setCachedIdentification(images, normalizedCategory, appraisalMode, repaired);
+
+            return repaired;
+          } catch (repairError) {
+            lastError = repairError;
+
+            if (
+              model !== this.identifyModels[this.identifyModels.length - 1] &&
+              (repairError instanceof GeminiInvalidJsonError || isMissingModelError(repairError))
+            ) {
+              console.warn(`[Gemini] identifyItem model ${model} produced invalid JSON. Trying fallback model.`);
+              continue;
+            }
+
+            throw repairError;
+          }
+        }
+
+        if (isMissingModelError(error) && model !== this.identifyModels[this.identifyModels.length - 1]) {
+          console.warn(`[Gemini] identifyItem model ${model} is unavailable. Trying fallback model.`);
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("identifyItem failed.");
   }
 
   async generateEmbedding(text: string): Promise<GeminiEmbeddingResponse> {
@@ -395,6 +746,10 @@ export class GeminiClient {
       } catch (error) {
         lastError = error;
 
+        if (isMissingModelError(error)) {
+          break;
+        }
+
         if (attempt === MAX_RETRIES) {
           break;
         }
@@ -445,6 +800,10 @@ export class GeminiClient {
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error("Gemini request timed out after 15 seconds.");
+      }
+
+      if (isJsonSyntaxError(error)) {
+        throw new Error("Gemini returned a malformed response envelope.");
       }
 
       throw error;

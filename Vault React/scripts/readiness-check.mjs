@@ -51,6 +51,16 @@ addCheck(
 addCheck(
   checks,
   "Local flow",
+  "App runtime moved out of router directories",
+  fileExists("src/core/app/AppProvider.tsx") &&
+    fileExists("src/core/app/container.ts") &&
+    fileExists("src/core/app/runtime.ts") &&
+    !fileExists("src/app"),
+  "Runtime/container files should live in src/core/app and src/app should not exist."
+);
+addCheck(
+  checks,
+  "Local flow",
   "Mock analysis pipeline exists",
   fileExists("src/features/scan/FakeScanProcessingPipeline.ts") &&
     fileExists("src/features/scan/MockScanResultFactory.ts"),
@@ -89,6 +99,22 @@ addCheck(
   fileExists("VaultScope/functions/src/index.ts", repoRoot) &&
     fileExists("VaultScope/scrapers/run_all.py", repoRoot),
   "Cloud Functions and auction scrapers should exist in the legacy backend source.",
+  false
+);
+addCheck(
+  checks,
+  "Expo workflow",
+  "No stale native iOS directory is committed",
+  !fileExists("ios"),
+  "Expo Go is the primary workflow, so ios/ should not remain as stale generated source.",
+  false
+);
+addCheck(
+  checks,
+  "Expo workflow",
+  "No stale Detox config points at legacy app",
+  !fileExists(".detoxrc.json"),
+  "Legacy Detox config should be removed instead of pointing at the old VaultScopeMobile app.",
   false
 );
 

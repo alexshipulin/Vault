@@ -1,7 +1,6 @@
 import { AsyncStorageCollectionRepository } from "@src/data/local/AsyncStorageCollectionRepository";
 import { clearVaultReactStorage } from "@src/data/local/storage";
 import type { CollectibleItem } from "@src/domain/models";
-import { seededItems } from "@src/test/fixtures/mockData";
 
 function makeItem(overrides: Partial<CollectibleItem> = {}): CollectibleItem {
   return {
@@ -31,19 +30,8 @@ describe("AsyncStorageCollectionRepository", () => {
     await clearVaultReactStorage();
   });
 
-  it("seeds preview data when configured", async () => {
-    const repository = new AsyncStorageCollectionRepository(true);
-
-    const items = await repository.fetchAll();
-
-    expect(items).toHaveLength(seededItems.length);
-    expect(items.map((item) => item.id)).toEqual(
-      [...seededItems].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).map((item) => item.id)
-    );
-  });
-
   it("saves, reloads, updates, and deletes items", async () => {
-    const repository = new AsyncStorageCollectionRepository(false);
+    const repository = new AsyncStorageCollectionRepository();
     const created = makeItem();
 
     await repository.save(created);
@@ -62,7 +50,7 @@ describe("AsyncStorageCollectionRepository", () => {
   });
 
   it("prevents broken duplicates by replacing existing ids", async () => {
-    const repository = new AsyncStorageCollectionRepository(false);
+    const repository = new AsyncStorageCollectionRepository();
 
     await repository.save(makeItem({ id: "same-id", name: "Original" }));
     await repository.save(makeItem({ id: "same-id", name: "Replacement", priceMid: 999 }));
@@ -73,8 +61,36 @@ describe("AsyncStorageCollectionRepository", () => {
     expect(items[0].priceMid).toBe(999);
   });
 
+  it("preserves optional valuation diagnostics fields", async () => {
+    const repository = new AsyncStorageCollectionRepository();
+
+    await repository.save(
+      makeItem({
+        id: "diagnostic-item",
+        confidence: 0.82,
+        sourceLabel: "AI approximation used because no market matches were found.",
+        matchedSources: ["ebay", "heritage"],
+        comparableCount: 2,
+        needsReview: true,
+        valuationWarnings: ["Comparable items only weakly matched the detected object."],
+      }),
+    );
+
+    const items = await repository.fetchAll();
+    expect(items[0]).toEqual(
+      expect.objectContaining({
+        confidence: 0.82,
+        sourceLabel: "AI approximation used because no market matches were found.",
+        matchedSources: ["ebay", "heritage"],
+        comparableCount: 2,
+        needsReview: true,
+        valuationWarnings: ["Comparable items only weakly matched the detected object."],
+      }),
+    );
+  });
+
   it("searches by title, origin, category, and history summary", async () => {
-    const repository = new AsyncStorageCollectionRepository(false);
+    const repository = new AsyncStorageCollectionRepository();
     await repository.save(makeItem({ id: "coin-1", name: "Lincoln Cent", historySummary: "Key date penny" }));
     await repository.save(makeItem({ id: "vinyl-1", category: "vinyl", name: "Blue Note LP", origin: "US" }));
 
@@ -85,7 +101,7 @@ describe("AsyncStorageCollectionRepository", () => {
   });
 
   it("calculates total value from mid, high, or low values", async () => {
-    const repository = new AsyncStorageCollectionRepository(false);
+    const repository = new AsyncStorageCollectionRepository();
     await repository.save(makeItem({ id: "one", priceLow: 100, priceMid: 150, priceHigh: 200 }));
     await repository.save(makeItem({ id: "two", priceLow: 50, priceMid: null, priceHigh: 90 }));
     await repository.save(makeItem({ id: "three", priceLow: 25, priceMid: null, priceHigh: null }));

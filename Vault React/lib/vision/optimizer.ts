@@ -1,10 +1,11 @@
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 
 const BYTES_IN_MB = 1024 * 1024;
+const fileSystemBridge = (FileSystem as typeof FileSystem & { default?: typeof FileSystem }).default ?? FileSystem;
 
 async function getFileSize(uri: string): Promise<number> {
-  const info = await FileSystem.getInfoAsync(uri, { size: true });
+  const info = await fileSystemBridge.getInfoAsync(uri, { size: true });
   return info.exists && typeof info.size === "number" ? info.size : 0;
 }
 
@@ -58,8 +59,8 @@ export class ImageOptimizer {
   }
 
   async convertToBase64(uri: string): Promise<string> {
-    return FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
+    return fileSystemBridge.readAsStringAsync(uri, {
+      encoding: fileSystemBridge.EncodingType.Base64,
     });
   }
 }

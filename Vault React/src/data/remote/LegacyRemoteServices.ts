@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { AppConfig, hasRemoteConfig } from "@/constants/Config";
 import type { AnalysisService, AppReadinessService, RemoteSearchService } from "@src/domain/contracts";
-import type { AppReadinessReport, CollectibleItem, ScanResult, TemporaryScanSession } from "@src/domain/models";
+import type { AppReadinessReport, CollectibleItem, PriceSource, ScanResult, TemporaryScanSession } from "@src/domain/models";
 
 function requireLegacyFirebaseAuth(): { ensureAnonymousSession: () => Promise<{ uid: string }> } {
   return require("@/lib/firebase/auth") as { ensureAnonymousSession: () => Promise<{ uid: string }> };
@@ -43,7 +43,7 @@ function requireLegacySearch(): { AntiqueSearchEngine: new () => { getTopDeals: 
 
 function requireLegacyScanPipeline(): {
   ScanPipeline: new () => {
-    executeScan: (images: string[], category: string) => Promise<{
+    executeScan: (images: string[], category: string, appraisalMode?: "standard" | "mystery") => Promise<{
       id: string;
       images: string[];
       scannedAt: string;
@@ -55,28 +55,55 @@ function requireLegacyScanPipeline(): {
         estimateLow?: number | null;
         saleDate?: string | null;
         imageUrl?: string | null;
+        source?: string | null;
       }[];
       identification: {
         category: string;
         name: string;
         year?: number | null;
         origin?: string | null;
+        objectType?: string | null;
+        material?: string | null;
+        makerOrBrand?: string | null;
         condition: string;
         conditionRange: [string, string];
         historySummary: string;
         confidence: number;
+        requiresMeasurements?: boolean;
+        requiresMorePhotos?: boolean;
+        isLikelyMassProduced?: boolean;
+        isLikelyReproduction?: boolean;
+        valuationWarnings?: string[];
+        marketTier?: "junk" | "decor" | "secondary" | "collector" | "premium_antique";
+        pricingEvidenceStrength?: "weak" | "moderate" | "strong";
+        likelyRetailContext?: "flea_market" | "thrift" | "estate_sale" | "auction";
+        likelyValueCeiling?: number | null;
+        valuationConfidence?: number;
+        descriptionTone?: "skeptical" | "neutral" | "collector";
       };
       priceEstimate: {
         low?: number | null;
         high?: number | null;
         currency: string;
+        source?: "database" | "aiFallback";
+        sourceLabel?: string | null;
+        confidence?: number;
+        valuationConfidence?: number;
+        valuationMode?: "standard" | "mystery";
+        evidenceStrength?: "weak" | "moderate" | "strong";
+        appliedValueCeiling?: number | null;
+        sourceBreakdown?: { ebay: number; liveauctioneers: number; heritage: number };
+        matchedSources?: string[];
+        comparableCount?: number;
+        needsReview?: boolean;
+        valuationWarnings?: string[];
       };
     }>;
   };
 } {
   return require("@/lib/scan/pipeline") as {
     ScanPipeline: new () => {
-      executeScan: (images: string[], category: string) => Promise<{
+    executeScan: (images: string[], category: string, appraisalMode?: "standard" | "mystery") => Promise<{
         id: string;
         images: string[];
         scannedAt: string;
@@ -88,26 +115,55 @@ function requireLegacyScanPipeline(): {
           estimateLow?: number | null;
           saleDate?: string | null;
           imageUrl?: string | null;
+          source?: string | null;
         }[];
         identification: {
           category: string;
           name: string;
           year?: number | null;
           origin?: string | null;
+          objectType?: string | null;
+          material?: string | null;
+          makerOrBrand?: string | null;
           condition: string;
           conditionRange: [string, string];
           historySummary: string;
           confidence: number;
+          requiresMeasurements?: boolean;
+          requiresMorePhotos?: boolean;
+          isLikelyMassProduced?: boolean;
+          isLikelyReproduction?: boolean;
+          valuationWarnings?: string[];
+          marketTier?: "junk" | "decor" | "secondary" | "collector" | "premium_antique";
+          pricingEvidenceStrength?: "weak" | "moderate" | "strong";
+          likelyRetailContext?: "flea_market" | "thrift" | "estate_sale" | "auction";
+          likelyValueCeiling?: number | null;
+          valuationConfidence?: number;
+          descriptionTone?: "skeptical" | "neutral" | "collector";
         };
         priceEstimate: {
           low?: number | null;
           high?: number | null;
           currency: string;
+          source?: "database" | "aiFallback";
+          sourceLabel?: string | null;
+          confidence?: number;
+          valuationConfidence?: number;
+          valuationMode?: "standard" | "mystery";
+          evidenceStrength?: "weak" | "moderate" | "strong";
+          appliedValueCeiling?: number | null;
+          sourceBreakdown?: { ebay: number; liveauctioneers: number; heritage: number };
+          matchedSources?: string[];
+          comparableCount?: number;
+          needsReview?: boolean;
+          valuationWarnings?: string[];
         };
       }>;
     };
   };
 }
+
+type LegacyScanPipelineInstance = InstanceType<ReturnType<typeof requireLegacyScanPipeline>["ScanPipeline"]>;
 
 function mapCondition(raw: string): number {
   switch (raw) {
@@ -127,17 +183,55 @@ function mapCondition(raw: string): number {
 }
 
 function mapRemoteCategory(input: string): ScanResult["category"] {
-  if (input.includes("vinyl") || input.includes("record")) {
+  const normalized = input.trim().toLowerCase();
+
+  if (normalized.includes("vinyl") || normalized.includes("record")) {
     return "vinyl";
   }
-  if (input.includes("card")) {
+  if (normalized.includes("card")) {
     return "card";
   }
-  if (input.includes("antique")) {
+  if (
+    normalized.includes("antique") ||
+    normalized.includes("ceramic") ||
+    normalized.includes("pottery") ||
+    normalized.includes("porcelain") ||
+    normalized.includes("vase") ||
+    normalized.includes("jar") ||
+    normalized.includes("stoneware") ||
+    normalized.includes("furniture") ||
+    normalized.includes("jewelry") ||
+    normalized.includes("art")
+  ) {
     return "antique";
   }
+  if (normalized.includes("coin")) {
+    return "coin";
+  }
 
-  return "coin";
+  return "antique";
+}
+
+function mapRemotePriceSource(
+  remoteSource: "database" | "aiFallback" | undefined,
+  comparableSource: string | null | undefined,
+): PriceSource {
+  if (remoteSource === "aiFallback") {
+    return "aiEstimate";
+  }
+
+  const normalized = comparableSource?.trim().toLowerCase() ?? "";
+  if (normalized.includes("pcgs")) {
+    return "pcgs";
+  }
+  if (normalized.includes("discogs")) {
+    return "discogs";
+  }
+  if (normalized.includes("ebay")) {
+    return "ebay";
+  }
+
+  return "antiqueDB";
 }
 
 export class LegacyRemoteAnalysisService implements AnalysisService {
@@ -147,11 +241,34 @@ export class LegacyRemoteAnalysisService implements AnalysisService {
 
   async runAnalysis(session: TemporaryScanSession): Promise<ScanResult> {
     const { ScanPipeline } = requireLegacyScanPipeline();
-    const pipeline = new ScanPipeline();
+    const pipeline = new ScanPipeline() as LegacyScanPipelineInstance;
     const remote = await pipeline.executeScan(
       session.capturedImages.map((image) => image.uri),
-      session.mode === "mystery" ? "general" : "coin"
+      "general",
+      session.mode,
     );
+    const low = remote.priceEstimate.low ?? null;
+    const high = remote.priceEstimate.high ?? null;
+    const hasPrice = typeof low === "number" || typeof high === "number";
+    const mappedSource = mapRemotePriceSource(remote.priceEstimate.source, remote.comparableAuctions[0]?.source);
+    const mid =
+      typeof low === "number" && typeof high === "number"
+        ? (low + high) / 2
+        : high ?? low ?? 0;
+    const matchedSources = remote.priceEstimate.matchedSources ?? [];
+    const valuationWarnings = remote.priceEstimate.valuationWarnings ?? [];
+    const sourceLabelBase =
+      remote.priceEstimate.sourceLabel ??
+      (remote.priceEstimate.source === "aiFallback"
+        ? "AI approximation used because no reliable market matches were found."
+        : "Mapped from legacy Gemini + auction search pipeline");
+    const sourceLabel = [
+      sourceLabelBase,
+      matchedSources.length ? `Sources: ${matchedSources.join(", ")}.` : "",
+      valuationWarnings.length ? `Checks: ${valuationWarnings.join(" ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     return {
       id: remote.id,
@@ -164,25 +281,34 @@ export class LegacyRemoteAnalysisService implements AnalysisService {
       conditionRangeHigh: mapCondition(remote.identification.conditionRange[1]),
       historySummary: remote.identification.historySummary,
       confidence: remote.identification.confidence,
-      priceData: {
-        low: remote.priceEstimate.low ?? 0,
-        mid:
-          typeof remote.priceEstimate.low === "number" && typeof remote.priceEstimate.high === "number"
-            ? (remote.priceEstimate.low + remote.priceEstimate.high) / 2
-            : remote.priceEstimate.high ?? remote.priceEstimate.low ?? 0,
-        high: remote.priceEstimate.high ?? remote.priceEstimate.low ?? 0,
-        currency: remote.priceEstimate.currency,
-        source: "aiEstimate",
-        sourceLabel: "Mapped from legacy Gemini + auction search pipeline",
-        fetchedAt: remote.scannedAt,
-        comparables: remote.comparableAuctions.slice(0, 5).map((item) => ({
-          id: item.id,
-          title: item.title,
-          price: item.priceRealized ?? item.estimateHigh ?? item.estimateLow ?? 0,
-          soldAt: item.saleDate ?? remote.scannedAt,
-          sourceURL: item.imageUrl
-        }))
-      },
+      priceData: hasPrice
+        ? {
+            low: low ?? high ?? 0,
+            mid,
+            high: high ?? low ?? 0,
+            currency: remote.priceEstimate.currency,
+            source: mappedSource,
+            sourceLabel,
+            fetchedAt: remote.scannedAt,
+            valuationConfidence: remote.priceEstimate.valuationConfidence ?? remote.priceEstimate.confidence ?? null,
+            valuationMode: remote.priceEstimate.valuationMode ?? session.mode,
+            evidenceStrength: remote.priceEstimate.evidenceStrength ?? null,
+            appliedValueCeiling: remote.priceEstimate.appliedValueCeiling ?? null,
+            sourceBreakdown: remote.priceEstimate.sourceBreakdown ?? null,
+            matchedSources,
+            comparableCount: remote.priceEstimate.comparableCount ?? remote.comparableAuctions.length,
+            needsReview: remote.priceEstimate.needsReview ?? false,
+            valuationWarnings,
+            comparables: remote.comparableAuctions.slice(0, 5).map((item) => ({
+              id: item.id,
+              title: item.title,
+              price: item.priceRealized ?? item.estimateHigh ?? item.estimateLow ?? 0,
+              soldAt: item.saleDate ?? remote.scannedAt,
+              source: item.source ?? null,
+              sourceURL: null
+            }))
+          }
+        : null,
       rawAIResponse: JSON.stringify(remote.identification),
       scannedAt: remote.scannedAt,
       inputImageHashes: remote.images
@@ -231,13 +357,16 @@ export class LegacyRemoteCollectionMirrorService {
           low: item.priceLow ?? null,
           high: item.priceHigh ?? item.priceMid ?? item.priceLow ?? null,
           currency: "USD",
-          confidence: 0.5
+          confidence: item.valuationConfidence ?? item.confidence ?? 0.5
         },
         customNotes: item.historySummary,
         addedAt: item.addedAt
       });
       return true;
-    } catch {
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("Remote collection mirror failed", error);
+      }
       return false;
     }
   }
@@ -254,6 +383,7 @@ export class LegacyReadinessService implements AppReadinessService {
     const projectReady = firebaseConfigured && AppConfig.firebase.projectId !== "your-firebase-project-id";
     const searchIndexReady = await this.searchService.isDataReady().catch(() => false);
     const remoteAnalysisReady = await this.analysisService.isConfigured().catch(() => false);
+    const remoteConfiguredButUnverified = firebaseConfigured && (!searchIndexReady || !remoteAnalysisReady);
 
     return {
       firebaseConfigured,
@@ -263,9 +393,21 @@ export class LegacyReadinessService implements AppReadinessService {
       geminiConfigured: Boolean(AppConfig.geminiApiKey),
       remoteAnalysisReady,
       messages: [
-        firebaseConfigured ? "Firebase config detected" : "Firebase config missing",
-        searchIndexReady ? "Auction search returned results" : "Auction search could not be verified",
-        remoteAnalysisReady ? "Remote analysis service configured" : "Remote analysis service not ready"
+        firebaseConfigured
+          ? projectReady
+            ? "Firebase config detected"
+            : "Firebase env detected, but the project binding is still placeholder or not verified"
+          : "Firebase config missing",
+        searchIndexReady
+          ? "Auction search returned results"
+          : remoteConfiguredButUnverified
+            ? "Auction search is configured but not verified"
+            : "Auction search could not be verified",
+        remoteAnalysisReady
+          ? searchIndexReady
+            ? "Remote analysis service configured"
+            : "Remote analysis service is configured but not verified"
+          : "Remote analysis service not ready"
       ]
     };
   }
