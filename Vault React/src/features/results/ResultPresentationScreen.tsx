@@ -321,8 +321,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   contentSection: {
+    minHeight: 116,
     paddingTop: 20,
     paddingHorizontal: spacing.lg,
+    paddingBottom: 0,
   },
   itemTitle: {
     color: colors.foreground,
@@ -339,24 +341,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
     flexDirection: "row",
     gap: 20,
+    alignItems: "flex-start",
   },
   metaItem: {
     flexShrink: 1,
+    gap: 4,
   },
   metaLabel: {
     color: mutedLabel,
     fontSize: 8,
     fontWeight: "700",
     letterSpacing: 2,
+    lineHeight: 8,
   },
   metaValue: {
-    marginTop: 2,
     color: colors.foreground,
     fontSize: 12,
     fontWeight: "400",
+    lineHeight: 12,
   },
   divider: {
-    marginTop: spacing.md,
     height: borders.hairline,
     backgroundColor: dividerColor,
   },
@@ -429,6 +433,7 @@ const styles = StyleSheet.create({
   },
   diagnosticBlock: {
     paddingTop: 16,
+    paddingBottom: 20,
     paddingHorizontal: spacing.lg,
     gap: 8,
   },

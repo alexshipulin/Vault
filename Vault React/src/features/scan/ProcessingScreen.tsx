@@ -99,7 +99,7 @@ function statusLabel(status: DisplayStepStatus) {
   }
 
   if (status === "active") {
-    return "...";
+    return "IN PROGRESS";
   }
 
   return "WAITING";
@@ -120,7 +120,6 @@ export function ProcessingScreen() {
   const [currentProgress, setCurrentProgress] = useState(0);
   const [finalizing, setFinalizing] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [sourcesLine, setSourcesLine] = useState(t("processing.searching.start"));
   const [retryNonce, setRetryNonce] = useState(0);
 
   const resetProgressState = useCallback(() => {
@@ -128,7 +127,6 @@ export function ProcessingScreen() {
     setCurrentProgress(0);
     setFinalizing(false);
     setCompleted(false);
-    setSourcesLine(t("processing.searching.start"));
   }, []);
 
   useEffect(() => {
@@ -188,7 +186,7 @@ export function ProcessingScreen() {
           }
 
           if (update.currentSearchSource) {
-            setSourcesLine(update.currentSearchSource);
+            // Search-source debug copy is intentionally hidden on the production processing screen.
           }
 
           if (update.completedResult) {
@@ -208,7 +206,6 @@ export function ProcessingScreen() {
         setLatestResult(null);
         setSelectedItem(null);
         setSelectedItemID(null);
-        setSourcesLine(t("processing.searching.failed"));
         Alert.alert(t("processing.error.title"), t("processing.error.message"), [
           {
             text: t("common.retry"),
@@ -306,18 +303,6 @@ export function ProcessingScreen() {
           )}
         </View>
 
-        <View style={styles.previewOverlay}>
-          <Text style={styles.previewLabel}>{t("processing.capture.section")}</Text>
-          <Pressable
-            onPress={() => {
-              void retake();
-            }}
-            testID="processing.retakeButton"
-          >
-            <Text style={styles.previewRetake}>{t("common.retake")}</Text>
-          </Pressable>
-        </View>
-
         <View style={styles.stageSection}>
           <Text style={styles.stageTitle}>{t("processing.section")}</Text>
           <View style={styles.divider} />
@@ -335,13 +320,6 @@ export function ProcessingScreen() {
               {index < steps.length - 1 ? <View style={styles.divider} /> : null}
             </React.Fragment>
           ))}
-        </View>
-
-        <View style={[styles.sourceBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <Text style={styles.sourceLabel}>SEARCHING:</Text>
-          <Text style={styles.sourceTicker} numberOfLines={1} testID="processing.sourcesLine">
-            {sourcesLine}
-          </Text>
         </View>
       </View>
     </Screen>
@@ -367,6 +345,7 @@ function ProcessingStepRow({
         style={[
           styles.stepStatus,
           status === "complete" && styles.stepStatusComplete,
+          status === "active" && styles.stepStatusActive,
           status === "pending" && styles.stepStatusPending
         ]}
       >
@@ -462,26 +441,6 @@ const styles = StyleSheet.create({
   previewFallback: {
     backgroundColor: "#111111"
   },
-  previewOverlay: {
-    height: 36,
-    backgroundColor: colors.background,
-    paddingHorizontal: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  previewLabel: {
-    color: "#444444",
-    fontSize: 9,
-    fontWeight: "600",
-    letterSpacing: 2
-  },
-  previewRetake: {
-    color: colors.foreground,
-    fontSize: 9,
-    fontWeight: "600",
-    letterSpacing: 2
-  },
   stageSection: {
     flex: 1,
     paddingTop: 24,
@@ -559,31 +518,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 2
   },
-  stepStatusPending: {
+  stepStatusActive: {
     color: "#333333",
     fontSize: 9,
     fontWeight: "700",
     letterSpacing: 2
   },
-  sourceBar: {
-    height: 44,
-    backgroundColor: "#0A0A0A",
-    paddingHorizontal: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10
-  },
-  sourceLabel: {
-    color: "#444444",
+  stepStatusPending: {
+    color: "#333333",
     fontSize: 9,
-    fontWeight: "600",
+    fontWeight: "700",
     letterSpacing: 2
-  },
-  sourceTicker: {
-    flex: 1,
-    color: colors.foreground,
-    fontSize: 9,
-    fontWeight: "400"
   },
   emptyRoot: {
     flex: 1,

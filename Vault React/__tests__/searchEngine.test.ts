@@ -1,29 +1,29 @@
-const getDocsMock = jest.fn();
-const onSnapshotMock = jest.fn();
-const queryMock = jest.fn((target, ...constraints) => ({ target, constraints }));
-const whereMock = jest.fn((field, op, value) => ({ type: "where", field, op, value }));
-const orderByMock = jest.fn((field, direction) => ({ type: "orderBy", field, direction }));
-const collectionMock = jest.fn((_db, name, ...path) => ({ type: "collection", name, path }));
-const limitConstraintMock = jest.fn((value) => ({ type: "limit", value }));
-const startAfterMock = jest.fn((cursor) => ({ type: "startAfter", cursor }));
+const mockGetDocs = jest.fn();
+const mockOnSnapshot = jest.fn();
+const mockQuery = jest.fn((target, ...constraints) => ({ target, constraints }));
+const mockWhere = jest.fn((field, op, value) => ({ type: "where", field, op, value }));
+const mockOrderBy = jest.fn((field, direction) => ({ type: "orderBy", field, direction }));
+const mockCollection = jest.fn((_db, name, ...path) => ({ type: "collection", name, path }));
+const mockLimitConstraint = jest.fn((value) => ({ type: "limit", value }));
+const mockStartAfter = jest.fn((cursor) => ({ type: "startAfter", cursor }));
 
-const buildSearchCacheKeyMock = jest.fn((prefix, payload) => `${prefix}:${JSON.stringify(payload)}`);
-const getCachedSearchResultMock = jest.fn(async () => null);
-const setCachedSearchResultMock = jest.fn(async () => undefined);
-const captureErrorMock = jest.fn();
-const logSearchQueryMock = jest.fn();
-const trackFirestoreReadMock = jest.fn();
-const measureAsyncMock = jest.fn(async (_name, operation) => operation());
+const mockBuildSearchCacheKey = jest.fn((prefix, payload) => `${prefix}:${JSON.stringify(payload)}`);
+const mockGetCachedSearchResult = jest.fn(async () => null);
+const mockSetCachedSearchResult = jest.fn(async () => undefined);
+const mockCaptureError = jest.fn();
+const mockLogSearchQuery = jest.fn();
+const mockTrackFirestoreRead = jest.fn();
+const mockMeasureAsync = jest.fn(async (_name, operation) => operation());
 
 jest.mock("firebase/firestore", () => ({
-  collection: (...args: unknown[]) => collectionMock(...args),
-  getDocs: (...args: unknown[]) => getDocsMock(...args),
-  limit: (...args: unknown[]) => limitConstraintMock(...args),
-  onSnapshot: (...args: unknown[]) => onSnapshotMock(...args),
-  orderBy: (...args: unknown[]) => orderByMock(...args),
-  query: (...args: unknown[]) => queryMock(...args),
-  startAfter: (...args: unknown[]) => startAfterMock(...args),
-  where: (...args: unknown[]) => whereMock(...args),
+  collection: (...args: unknown[]) => mockCollection(...args),
+  getDocs: (...args: unknown[]) => mockGetDocs(...args),
+  limit: (...args: unknown[]) => mockLimitConstraint(...args),
+  onSnapshot: (...args: unknown[]) => mockOnSnapshot(...args),
+  orderBy: (...args: unknown[]) => mockOrderBy(...args),
+  query: (...args: unknown[]) => mockQuery(...args),
+  startAfter: (...args: unknown[]) => mockStartAfter(...args),
+  where: (...args: unknown[]) => mockWhere(...args),
 }));
 
 jest.mock("@/lib/firebase/config", () => ({
@@ -32,17 +32,17 @@ jest.mock("@/lib/firebase/config", () => ({
 }));
 
 jest.mock("@/lib/firebase/cache", () => ({
-  buildSearchCacheKey: (...args: unknown[]) => buildSearchCacheKeyMock(...args),
-  getCachedSearchResult: (...args: unknown[]) => getCachedSearchResultMock(...args),
-  setCachedSearchResult: (...args: unknown[]) => setCachedSearchResultMock(...args),
+  buildSearchCacheKey: (...args: unknown[]) => mockBuildSearchCacheKey(...args),
+  getCachedSearchResult: (...args: unknown[]) => mockGetCachedSearchResult(...args),
+  setCachedSearchResult: (...args: unknown[]) => mockSetCachedSearchResult(...args),
 }));
 
 jest.mock("@/lib/performance/monitoring", () => ({
   performanceMonitor: {
-    measureAsync: (...args: unknown[]) => measureAsyncMock(...args),
-    logSearchQuery: (...args: unknown[]) => logSearchQueryMock(...args),
-    trackFirestoreRead: (...args: unknown[]) => trackFirestoreReadMock(...args),
-    captureError: (...args: unknown[]) => captureErrorMock(...args),
+    measureAsync: (...args: unknown[]) => mockMeasureAsync(...args),
+    logSearchQuery: (...args: unknown[]) => mockLogSearchQuery(...args),
+    trackFirestoreRead: (...args: unknown[]) => mockTrackFirestoreRead(...args),
+    captureError: (...args: unknown[]) => mockCaptureError(...args),
   },
 }));
 
@@ -82,7 +82,7 @@ describe("AntiqueSearchEngine missing-index fallbacks", () => {
   });
 
   it("falls back to a lightweight keyword query when the indexed search path is unavailable", async () => {
-    getDocsMock
+    mockGetDocs
       .mockRejectedValueOnce(makeIndexError())
       .mockRejectedValueOnce(makeIndexError())
       .mockResolvedValueOnce(
@@ -120,14 +120,14 @@ describe("AntiqueSearchEngine missing-index fallbacks", () => {
 
     expect(results.map((item) => item.id)).toEqual(["jar-1", "jar-2"]);
     expect(results.map((item) => item.priceRealized)).toEqual([20, 12]);
-    expect(getDocsMock).toHaveBeenCalledTimes(3);
-    expect(captureErrorMock).toHaveBeenCalled();
+    expect(mockGetDocs).toHaveBeenCalledTimes(3);
+    expect(mockCaptureError).toHaveBeenCalled();
     expect(consoleWarnSpy).toHaveBeenCalled();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
   it("keeps comparable auction search working when ascending index-backed queries are missing", async () => {
-    getDocsMock
+    mockGetDocs
       .mockResolvedValueOnce(
         makeSnapshot(
           makeDoc("high-1", {

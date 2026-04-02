@@ -1081,7 +1081,7 @@
     {
       "type": "frame",
       "id": "hcUsD",
-      "x": 900,
+      "x": 899,
       "y": 0,
       "name": "3 — Processing",
       "width": 390,
@@ -1570,7 +1570,7 @@
               "height": 20,
               "iconFontName": "share-2",
               "iconFontFamily": "lucide",
-              "fill": "#FFFFFF"
+              "fill": "#ffffff00"
             }
           ]
         },
@@ -1599,6 +1599,7 @@
               "id": "a129z",
               "name": "rIdBlock",
               "width": "fill_container",
+              "height": 116,
               "layout": "vertical",
               "padding": [
                 20,
