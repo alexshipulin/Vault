@@ -40,11 +40,22 @@ const DEFAULT_LIMIT = 20;
 const PREFETCH_PAGE_NUMBER = 2;
 const MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
 const COMPARABLE_CANDIDATE_LIMIT = 20;
+const MAX_FALLBACK_FETCH_LIMIT = 80;
 
 const inMemorySearchCache = new LruCache<string, SearchResult>({
   maxSize: 50,
   ttlMs: MEMORY_CACHE_TTL_MS,
 });
+
+type SearchSortDirection = "asc" | "desc";
+
+type SearchAttempt = {
+  label: string;
+  baseQuery: Query<DocumentData>;
+  fetchLimit?: number;
+  supportsPrefetch?: boolean;
+  transformResults?: (results: SearchResult) => SearchResult;
+};
 
 function isPermissionError(error: unknown): boolean {
   return (
@@ -69,6 +80,170 @@ function isNetworkError(error: unknown): boolean {
     code === "cancelled" ||
     code === "resource-exhausted"
   );
+}
+
+function isIndexError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const maybeFirestoreError = error as FirestoreError;
+  return (
+    maybeFirestoreError.code === "failed-precondition" ||
+    error.message.toLowerCase().includes("requires an index")
+  );
+}
+
+function buildFallbackFetchLimit(pageSize: number): number {
+  return Math.min(MAX_FALLBACK_FETCH_LIMIT, Math.max(pageSize * 4, pageSize));
+}
+
+function buildKeywordOnlyQuery(keywords: string[]): Query<DocumentData> {
+  return query(
+    collection(getVaultScopeDb(), "antique_auctions"),
+    where("keywords", "array-contains-any", keywords.slice(0, 10)),
+  );
+}
+
+function buildKeywordSortedQuery(
+  keywords: string[],
+  sortDirection: SearchSortDirection,
+): Query<DocumentData> {
+  return query(
+    collection(getVaultScopeDb(), "antique_auctions"),
+    where("keywords", "array-contains-any", keywords.slice(0, 10)),
+    orderBy("priceRealized", sortDirection),
+  );
+}
+
+function buildCategoryOnlyQuery(category: string): Query<DocumentData> {
+  return query(
+    collection(getVaultScopeDb(), "antique_auctions"),
+    where("category", "==", category),
+  );
+}
+
+function buildCategorySortedQuery(
+  category: string,
+  sortDirection: SearchSortDirection,
+): Query<DocumentData> {
+  return query(
+    collection(getVaultScopeDb(), "antique_auctions"),
+    where("category", "==", category),
+    orderBy("priceRealized", sortDirection),
+  );
+}
+
+function buildPriceSortedQuery(sortDirection: SearchSortDirection): Query<DocumentData> {
+  return query(
+    collection(getVaultScopeDb(), "antique_auctions"),
+    orderBy("priceRealized", sortDirection),
+  );
+}
+
+function buildTopDealsQuery(
+  sortDirection: SearchSortDirection,
+  category?: string,
+): Query<DocumentData> {
+  const constraints = [
+    where("priceRealized", ">", 0),
+    ...(category ? [where("category", "==", category)] : []),
+    orderBy("priceRealized", sortDirection),
+  ];
+
+  return query(
+    collection(getVaultScopeDb(), "antique_auctions"),
+    ...constraints,
+  );
+}
+
+function toTimestamp(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function applyLocalResultTransform(
+  results: SearchResult,
+  {
+    filters = {},
+    sortDirection = "desc",
+    limit,
+    requirePositivePrice = false,
+  }: {
+    filters?: SearchFilters;
+    sortDirection?: SearchSortDirection;
+    limit: number;
+    requirePositivePrice?: boolean;
+  },
+): SearchResult {
+  const filtered = results.filter((item) => {
+    if (filters.category && item.category.trim().toLowerCase() !== filters.category.trim().toLowerCase()) {
+      return false;
+    }
+
+    if (
+      filters.period &&
+      (item.period?.trim().toLowerCase() ?? "") !== filters.period.trim().toLowerCase()
+    ) {
+      return false;
+    }
+
+    if (typeof filters.priceMin === "number" && (item.priceRealized ?? Number.NEGATIVE_INFINITY) < filters.priceMin) {
+      return false;
+    }
+
+    if (typeof filters.priceMax === "number" && (item.priceRealized ?? Number.POSITIVE_INFINITY) > filters.priceMax) {
+      return false;
+    }
+
+    const saleDateTimestamp = toTimestamp(item.saleDate);
+    if (filters.dateFrom && saleDateTimestamp != null && saleDateTimestamp < filters.dateFrom.getTime()) {
+      return false;
+    }
+
+    if (filters.dateTo && saleDateTimestamp != null && saleDateTimestamp > filters.dateTo.getTime()) {
+      return false;
+    }
+
+    if (filters.dateFrom && saleDateTimestamp == null) {
+      return false;
+    }
+
+    if (filters.dateTo && saleDateTimestamp == null) {
+      return false;
+    }
+
+    if (requirePositivePrice && !(typeof item.priceRealized === "number" && item.priceRealized > 0)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const sorted = [...filtered].sort((left, right) => {
+    const leftPrice = typeof left.priceRealized === "number" ? left.priceRealized : null;
+    const rightPrice = typeof right.priceRealized === "number" ? right.priceRealized : null;
+
+    if (leftPrice == null && rightPrice == null) {
+      return 0;
+    }
+
+    if (leftPrice == null) {
+      return 1;
+    }
+
+    if (rightPrice == null) {
+      return -1;
+    }
+
+    return sortDirection === "asc" ? leftPrice - rightPrice : rightPrice - leftPrice;
+  });
+
+  return sorted.slice(0, limit);
 }
 
 function normalizeCollectionItems(snapshotDocs: Array<QueryDocumentSnapshot<DocumentData>>): CollectionItem[] {
@@ -165,11 +340,34 @@ export class AntiqueSearchEngine {
       limit: normalizedLimit,
     });
 
-    return this.executeSearch(
-      searchKey,
-      buildFirestoreQuery(keywords, filters),
-      normalizedLimit,
-    );
+    return this.executeSearch(searchKey, [
+      {
+        label: "keywords-primary",
+        baseQuery: buildFirestoreQuery(keywords, filters),
+        supportsPrefetch: true,
+      },
+      {
+        label: "keywords-sorted-fallback",
+        baseQuery: buildKeywordSortedQuery(keywords, "desc"),
+        transformResults: (results) =>
+          applyLocalResultTransform(results, {
+            filters,
+            sortDirection: "desc",
+            limit: normalizedLimit,
+          }),
+      },
+      {
+        label: "keywords-basic-fallback",
+        baseQuery: buildKeywordOnlyQuery(keywords),
+        fetchLimit: buildFallbackFetchLimit(normalizedLimit),
+        transformResults: (results) =>
+          applyLocalResultTransform(results, {
+            filters,
+            sortDirection: "desc",
+            limit: normalizedLimit,
+          }),
+      },
+    ], normalizedLimit);
   }
 
   async searchComparableAuctions(
@@ -189,28 +387,78 @@ export class AntiqueSearchEngine {
       Math.max(normalizedLimit * 2, normalizedLimit),
     );
 
-    const [highToLow, lowToHigh] = await Promise.all([
-      this.executeSearch(
-        buildSearchCacheKey("comparables-desc", {
-          keywords,
-          filters,
-          page: 1,
-          limit: candidateLimit,
-        }),
-        buildFirestoreQuery(keywords, filters, { sortDirection: "desc" }),
-        candidateLimit,
-      ),
-      this.executeSearch(
-        buildSearchCacheKey("comparables-asc", {
-          keywords,
-          filters,
-          page: 1,
-          limit: candidateLimit,
-        }),
-        buildFirestoreQuery(keywords, filters, { sortDirection: "asc" }),
-        candidateLimit,
-      ),
-    ]);
+    const highToLow = await this.executeSearch(
+      buildSearchCacheKey("comparables-desc", {
+        keywords,
+        filters,
+        page: 1,
+        limit: candidateLimit,
+      }),
+      [
+        {
+          label: "comparables-desc-primary",
+          baseQuery: buildFirestoreQuery(keywords, filters, { sortDirection: "desc" }),
+        },
+        {
+          label: "comparables-desc-sorted-fallback",
+          baseQuery: buildKeywordSortedQuery(keywords, "desc"),
+          transformResults: (results) =>
+            applyLocalResultTransform(results, {
+              filters,
+              sortDirection: "desc",
+              limit: candidateLimit,
+            }),
+        },
+        {
+          label: "comparables-desc-basic-fallback",
+          baseQuery: buildKeywordOnlyQuery(keywords),
+          fetchLimit: buildFallbackFetchLimit(candidateLimit),
+          transformResults: (results) =>
+            applyLocalResultTransform(results, {
+              filters,
+              sortDirection: "desc",
+              limit: candidateLimit,
+            }),
+        },
+      ],
+      candidateLimit,
+    );
+    const lowToHigh = await this.executeSearch(
+      buildSearchCacheKey("comparables-asc", {
+        keywords,
+        filters,
+        page: 1,
+        limit: candidateLimit,
+      }),
+      [
+        {
+          label: "comparables-asc-primary",
+          baseQuery: buildFirestoreQuery(keywords, filters, { sortDirection: "asc" }),
+        },
+        {
+          label: "comparables-asc-sorted-fallback",
+          baseQuery: buildKeywordSortedQuery(keywords, "asc"),
+          transformResults: (results) =>
+            applyLocalResultTransform(results, {
+              filters,
+              sortDirection: "asc",
+              limit: candidateLimit,
+            }),
+        },
+        {
+          label: "comparables-asc-basic-fallback",
+          baseQuery: buildKeywordOnlyQuery(keywords),
+          fetchLimit: buildFallbackFetchLimit(candidateLimit),
+          transformResults: (results) =>
+            applyLocalResultTransform(results, {
+              filters,
+              sortDirection: "asc",
+              limit: candidateLimit,
+            }),
+        },
+      ],
+      candidateLimit,
+    );
 
     return mergeUniqueResults([highToLow, lowToHigh]).slice(0, COMPARABLE_CANDIDATE_LIMIT);
   }
@@ -238,13 +486,24 @@ export class AntiqueSearchEngine {
       limit: normalizedLimit,
     });
 
-    const baseQuery = query(
-      collection(getVaultScopeDb(), "antique_auctions"),
-      where("category", "==", normalizedCategory),
-      orderBy("priceRealized", "desc"),
-    );
-
-    return this.executeSearch(searchKey, baseQuery, normalizedLimit);
+    return this.executeSearch(searchKey, [
+      {
+        label: "category-primary",
+        baseQuery: buildCategorySortedQuery(normalizedCategory, "desc"),
+        supportsPrefetch: true,
+      },
+      {
+        label: "category-basic-fallback",
+        baseQuery: buildCategoryOnlyQuery(normalizedCategory),
+        fetchLimit: buildFallbackFetchLimit(normalizedLimit),
+        transformResults: (results) =>
+          applyLocalResultTransform(results, {
+            filters: { category: normalizedCategory },
+            sortDirection: "desc",
+            limit: normalizedLimit,
+          }),
+      },
+    ], normalizedLimit);
   }
 
   async searchByPriceRange(
@@ -267,7 +526,53 @@ export class AntiqueSearchEngine {
       limit: this.defaultLimit,
     });
 
-    return this.executeSearch(searchKey, buildFirestoreQuery([], filters), this.defaultLimit);
+    const attempts: SearchAttempt[] = [
+      {
+        label: "price-range-primary",
+        baseQuery: buildFirestoreQuery([], filters),
+        supportsPrefetch: true,
+      },
+    ];
+
+    if (filters.category) {
+      attempts.push(
+        {
+          label: "price-range-category-sorted-fallback",
+          baseQuery: buildCategorySortedQuery(filters.category, "desc"),
+          transformResults: (results) =>
+            applyLocalResultTransform(results, {
+              filters,
+              sortDirection: "desc",
+              limit: this.defaultLimit,
+            }),
+        },
+        {
+          label: "price-range-category-basic-fallback",
+          baseQuery: buildCategoryOnlyQuery(filters.category),
+          fetchLimit: buildFallbackFetchLimit(this.defaultLimit),
+          transformResults: (results) =>
+            applyLocalResultTransform(results, {
+              filters,
+              sortDirection: "desc",
+              limit: this.defaultLimit,
+            }),
+        },
+      );
+    } else {
+      attempts.push({
+        label: "price-range-sorted-fallback",
+        baseQuery: buildPriceSortedQuery("desc"),
+        fetchLimit: buildFallbackFetchLimit(this.defaultLimit),
+        transformResults: (results) =>
+          applyLocalResultTransform(results, {
+            filters,
+            sortDirection: "desc",
+            limit: this.defaultLimit,
+          }),
+      });
+    }
+
+    return this.executeSearch(searchKey, attempts, this.defaultLimit);
   }
 
   async getTopDeals(category?: string, limit = this.defaultLimit): Promise<SearchResult> {
@@ -279,17 +584,42 @@ export class AntiqueSearchEngine {
       limit: normalizedLimit,
     });
 
-    const constraints = [
-      where("priceRealized", ">", 0),
-      ...(normalizedCategory ? [where("category", "==", normalizedCategory)] : []),
-      orderBy("priceRealized", "asc"),
+    const attempts: SearchAttempt[] = [
+      {
+        label: "top-deals-primary",
+        baseQuery: buildTopDealsQuery("asc", normalizedCategory),
+        supportsPrefetch: true,
+      },
     ];
-    const baseQuery = query(
-      collection(getVaultScopeDb(), "antique_auctions"),
-      ...constraints,
-    );
 
-    return this.executeSearch(searchKey, baseQuery, normalizedLimit);
+    if (normalizedCategory) {
+      attempts.push({
+        label: "top-deals-category-basic-fallback",
+        baseQuery: buildCategoryOnlyQuery(normalizedCategory),
+        fetchLimit: buildFallbackFetchLimit(normalizedLimit),
+        transformResults: (results) =>
+          applyLocalResultTransform(results, {
+            filters: { category: normalizedCategory },
+            sortDirection: "asc",
+            limit: normalizedLimit,
+            requirePositivePrice: true,
+          }),
+      });
+    } else {
+      attempts.push({
+        label: "top-deals-sorted-fallback",
+        baseQuery: buildPriceSortedQuery("asc"),
+        fetchLimit: buildFallbackFetchLimit(normalizedLimit),
+        transformResults: (results) =>
+          applyLocalResultTransform(results, {
+            sortDirection: "asc",
+            limit: normalizedLimit,
+            requirePositivePrice: true,
+          }),
+      });
+    }
+
+    return this.executeSearch(searchKey, attempts, normalizedLimit);
   }
 
   observeUserCollection(
@@ -318,7 +648,11 @@ export class AntiqueSearchEngine {
           return;
         }
 
-        console.error("[VaultScope] Failed to observe collection.", error);
+        performanceMonitor.captureError(error, {
+          area: "search.observe-collection",
+          userId,
+        });
+        console.warn("[VaultScope] Failed to observe collection. Returning empty state.", error);
         onChange([]);
       },
     );
@@ -326,12 +660,14 @@ export class AntiqueSearchEngine {
 
   private async executeSearch(
     cacheKey: string,
-    baseQuery: Query<DocumentData>,
+    attempts: SearchAttempt[],
     pageSize: number,
   ): Promise<SearchResult> {
     const memoryCachedResults = inMemorySearchCache.get(cacheKey);
     if (memoryCachedResults) {
-      void this.refreshCachedSearch(cacheKey, baseQuery, pageSize);
+      if (attempts[0]) {
+        void this.refreshCachedSearch(cacheKey, attempts[0], pageSize);
+      }
       return memoryCachedResults;
     }
 
@@ -339,78 +675,123 @@ export class AntiqueSearchEngine {
 
     if (cachedResults) {
       inMemorySearchCache.set(cacheKey, cachedResults);
-      void this.refreshCachedSearch(cacheKey, baseQuery, pageSize);
+      if (attempts[0]) {
+        void this.refreshCachedSearch(cacheKey, attempts[0], pageSize);
+      }
       return cachedResults;
     }
 
-    try {
-      const startedAt = Date.now();
-      const snapshot = await performanceMonitor.measureAsync(
-        "search.execute",
-        () => getDocs(query(baseQuery, limitConstraint(pageSize))),
-        {
+    for (let index = 0; index < attempts.length; index += 1) {
+      const attempt = attempts[index];
+
+      try {
+        const { results, snapshotDocs } = await this.fetchSearchAttempt(cacheKey, attempt, pageSize);
+
+        inMemorySearchCache.set(cacheKey, results);
+        await setCachedSearchResult(cacheKey, results);
+
+        const lastDoc = snapshotDocs[snapshotDocs.length - 1] ?? null;
+        if (attempt.supportsPrefetch && lastDoc) {
+          void this.prefetchNextPage(cacheKey, attempt.baseQuery, pageSize, lastDoc);
+        }
+
+        return results;
+      } catch (error) {
+        if (isPermissionError(error)) {
+          throw new SearchAuthRequiredError();
+        }
+
+        if (isNetworkError(error) && cachedResults) {
+          return cachedResults;
+        }
+
+        if (isIndexError(error) && index < attempts.length - 1) {
+          performanceMonitor.captureError(error, {
+            area: "search.execute",
+            cacheKey,
+            attempt: attempt.label,
+            fallback: true,
+          });
+          console.warn(
+            `[VaultScope] Search plan "${attempt.label}" requires a Firestore index. Trying a lighter fallback query.`,
+            error,
+          );
+          continue;
+        }
+
+        performanceMonitor.captureError(error, {
+          area: "search.execute",
           cacheKey,
-          pageSize,
-        },
-      );
-      const results = normalizeResults(snapshot.docs);
-      performanceMonitor.logSearchQuery(Date.now() - startedAt, {
-        cacheKey,
-        pageSize,
-        resultCount: results.length,
-      });
-      performanceMonitor.trackFirestoreRead(snapshot.docs.length, {
-        cacheKey,
-      });
-
-      inMemorySearchCache.set(cacheKey, results);
-      await setCachedSearchResult(cacheKey, results);
-
-      const lastDoc = snapshot.docs[snapshot.docs.length - 1] ?? null;
-      if (lastDoc) {
-        void this.prefetchNextPage(cacheKey, baseQuery, pageSize, lastDoc);
+          attempt: attempt.label,
+        });
+        console.warn("[VaultScope] Search request failed. Returning cached or empty results.", error);
+        return cachedResults ?? [];
       }
-
-      return results;
-    } catch (error) {
-      if (isPermissionError(error)) {
-        throw new SearchAuthRequiredError();
-      }
-
-      if (isNetworkError(error) && cachedResults) {
-        return cachedResults;
-      }
-
-      performanceMonitor.captureError(error, {
-        area: "search.execute",
-        cacheKey,
-      });
-      console.error("[VaultScope] Search request failed.", error);
-      return cachedResults ?? [];
     }
+
+    return cachedResults ?? [];
   }
 
   private async refreshCachedSearch(
     cacheKey: string,
-    baseQuery: Query<DocumentData>,
+    attempt: SearchAttempt,
     pageSize: number,
   ): Promise<void> {
     try {
-      const snapshot = await getDocs(query(baseQuery, limitConstraint(pageSize)));
-      const results = normalizeResults(snapshot.docs);
+      const { results, snapshotDocs } = await this.fetchSearchAttempt(cacheKey, attempt, pageSize);
 
       inMemorySearchCache.set(cacheKey, results);
       await setCachedSearchResult(cacheKey, results);
 
-      const lastDoc = snapshot.docs[snapshot.docs.length - 1] ?? null;
-      if (lastDoc) {
-        void this.prefetchNextPage(cacheKey, baseQuery, pageSize, lastDoc);
+      const lastDoc = snapshotDocs[snapshotDocs.length - 1] ?? null;
+      if (attempt.supportsPrefetch && lastDoc) {
+        void this.prefetchNextPage(cacheKey, attempt.baseQuery, pageSize, lastDoc);
       }
     } catch (error) {
       if (!isNetworkError(error)) {
         console.warn("[VaultScope] Background refresh failed.", error);
       }
     }
+  }
+
+  private async fetchSearchAttempt(
+    cacheKey: string,
+    attempt: SearchAttempt,
+    pageSize: number,
+  ): Promise<{
+    results: SearchResult;
+    snapshotDocs: Array<QueryDocumentSnapshot<DocumentData>>;
+  }> {
+    const startedAt = Date.now();
+    const fetchLimit = attempt.fetchLimit ?? pageSize;
+    const snapshot = await performanceMonitor.measureAsync(
+      "search.execute",
+      () => getDocs(query(attempt.baseQuery, limitConstraint(fetchLimit))),
+      {
+        cacheKey,
+        pageSize,
+        attempt: attempt.label,
+      },
+    );
+
+    const normalized = normalizeResults(snapshot.docs);
+    const results = attempt.transformResults ? attempt.transformResults(normalized) : normalized;
+
+    performanceMonitor.logSearchQuery(Date.now() - startedAt, {
+      cacheKey,
+      pageSize,
+      attempt: attempt.label,
+      resultCount: results.length,
+    });
+    performanceMonitor.trackFirestoreRead(snapshot.docs.length, {
+      cacheKey,
+      attempt: attempt.label,
+    });
+
+    return {
+      results,
+      snapshotDocs: snapshot.docs,
+    };
   }
 
   private async prefetchNextPage(
