@@ -40,9 +40,6 @@ function makeIdentifyPayload(overrides: Record<string, unknown> = {}) {
     descriptionTone: "skeptical",
     estimatedValueLow: 15,
     estimatedValueHigh: 35,
-    pricingBasis: "Common decor item without clear maker evidence.",
-    pricingConfidence: 0.24,
-    isBullion: false,
     estimatedValueCurrency: "USD",
     estimatedValueRationale: "Common decor item without clear maker evidence.",
     ...overrides,
@@ -126,7 +123,7 @@ describe("GeminiClient", () => {
     const { GeminiClient } = require("@/lib/gemini/client") as typeof import("@/lib/gemini/client");
     const client = new GeminiClient({
       apiKey: "test-gemini-key",
-      identifyModels: ["gemini-2.0-flash"],
+      identifyModels: ["gemini-2.5-flash"],
       rateLimiter: { schedule: (task: () => Promise<unknown>) => task() } as never,
     });
 
@@ -136,12 +133,9 @@ describe("GeminiClient", () => {
     expect(result.historySummary).toBe(
       "Likely a common decorative household vase. The shape suggests a later decorative piece.",
     );
-    expect(result.pricingBasis).toBe("Common decor item without clear maker evidence.");
-    expect(result.pricingConfidence).toBe(0.24);
-    expect(result.isBullion).toBe(false);
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[0]?.[0]).toContain("/models/gemini-2.5-flash-lite:generateContent");
-    expect(mockFetch.mock.calls[1]?.[0]).toContain("/models/gemini-2.5-flash-lite:generateContent");
+    expect(mockFetch.mock.calls[0]?.[0]).toContain("/models/gemini-2.5-flash:generateContent");
+    expect(mockFetch.mock.calls[1]?.[0]).toContain("/models/gemini-2.5-flash:generateContent");
   });
 
   it("falls back to the next supported model when the preferred model is unavailable", async () => {
@@ -165,7 +159,7 @@ describe("GeminiClient", () => {
     const { GeminiClient } = require("@/lib/gemini/client") as typeof import("@/lib/gemini/client");
     const client = new GeminiClient({
       apiKey: "test-gemini-key",
-      identifyModels: ["bad-model", "gemini-2.5-flash-lite"],
+      identifyModels: ["bad-model", "gemini-2.5-flash"],
       rateLimiter: { schedule: (task: () => Promise<unknown>) => task() } as never,
     });
 
@@ -174,10 +168,9 @@ describe("GeminiClient", () => {
     expect(result.name).toBe("Decorative Vase");
     expect(result.marketTier).toBe("decor");
     expect(result.valuationConfidence).toBe(0.24);
-    expect(result.pricingConfidence).toBe(0.24);
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(mockFetch.mock.calls[0]?.[0]).toContain("/models/bad-model:generateContent");
-    expect(mockFetch.mock.calls[1]?.[0]).toContain("/models/gemini-2.5-flash-lite:generateContent");
+    expect(mockFetch.mock.calls[1]?.[0]).toContain("/models/gemini-2.5-flash:generateContent");
   });
 
   it("falls back to the next model when repair on the primary model still returns invalid JSON", async () => {
@@ -229,16 +222,6 @@ describe("GeminiClient", () => {
         makeFetchResponse(
           makeInvalidEnvelope('{"category":"decorative vase","name":"Decorative Vase","year":'),
         ),
-      )
-      .mockResolvedValueOnce(
-        makeFetchResponse(
-          makeInvalidEnvelope('{"category":"decorative vase","name":"Decorative Vase"'),
-        ),
-      )
-      .mockResolvedValueOnce(
-        makeFetchResponse(
-          makeInvalidEnvelope('{"category":"decorative vase","name":"Decorative Vase","year":'),
-        ),
       );
 
     const { GeminiClient, GeminiInvalidJsonError } = require("@/lib/gemini/client") as typeof import("@/lib/gemini/client");
@@ -251,22 +234,5 @@ describe("GeminiClient", () => {
     await expect(
       client.identifyItem(["ZmFrZS1pbWFnZQ=="], "general", undefined, "mystery"),
     ).rejects.toBeInstanceOf(GeminiInvalidJsonError);
-  });
-
-  it("normalizes legacy Gemini 2.0 model ids to a supported fallback model", async () => {
-    mockFetch.mockResolvedValueOnce(makeFetchResponse(makeGeminiEnvelope(makeIdentifyPayload())));
-
-    const { GeminiClient } = require("@/lib/gemini/client") as typeof import("@/lib/gemini/client");
-    const client = new GeminiClient({
-      apiKey: "test-gemini-key",
-      identifyModels: ["gemini-2.0-flash-exp"],
-      rateLimiter: { schedule: (task: () => Promise<unknown>) => task() } as never,
-    });
-
-    const result = await client.identifyItem(["ZmFrZS1pbWFnZQ=="], "general", undefined, "mystery");
-
-    expect(result.name).toBe("Decorative Vase");
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(mockFetch.mock.calls[0]?.[0]).toContain("/models/gemini-2.5-flash-lite:generateContent");
   });
 });

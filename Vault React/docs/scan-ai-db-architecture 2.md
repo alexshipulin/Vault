@@ -509,7 +509,7 @@ const response = await this.postJson<GeminiGenerateContentResponse>(
 Model and behavior:
 
 - Base URL: `https://generativelanguage.googleapis.com/v1beta`
-- Identify model: `gemini-2.0-flash`
+- Identify model: `gemini-2.5-flash`
 - Retries: `3`
 - Timeout: `15s`
 - Caching is used through `getCachedIdentification` / `setCachedIdentification`

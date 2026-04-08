@@ -197,7 +197,7 @@ export function CameraScanScreen() {
         allowsEditing: false,
         allowsMultipleSelection: true,
         base64: true,
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         orderedSelection: true,
         quality: 0.85,
         selectionLimit: remainingSlots

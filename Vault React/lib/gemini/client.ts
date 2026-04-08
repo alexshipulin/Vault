@@ -21,7 +21,7 @@ import type {
 import type { AppraisalMode } from "@/lib/types";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_IDENTIFY_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+const DEFAULT_IDENTIFY_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"];
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 3;
@@ -497,9 +497,17 @@ function getRetryDelay(attempt: number): number {
   return baseDelay + jitter;
 }
 
+function normalizeIdentifyModelCandidate(candidate: string): string {
+  if (candidate === "gemini-2.0-flash" || candidate === "gemini-2.0-flash-exp") {
+    return "gemini-2.5-flash-lite";
+  }
+
+  return candidate;
+}
+
 function buildIdentifyModelCandidates(candidates: readonly string[] = []): string[] {
   const normalized = candidates
-    .map((candidate) => candidate.trim())
+    .map((candidate) => normalizeIdentifyModelCandidate(candidate.trim()))
     .filter(Boolean);
 
   return Array.from(new Set([...normalized, ...DEFAULT_IDENTIFY_MODELS]));

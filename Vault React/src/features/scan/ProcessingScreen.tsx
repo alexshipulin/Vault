@@ -85,6 +85,8 @@ function deriveSteps(
       if (currentStage === "historicalRecords" && progress >= 1) {
         status = "active";
       }
+    } else if (kind === "historicalRecords" && currentStage === "historicalRecords" && progress >= 1) {
+      status = "complete";
     } else if (valueEstimateOverrideActive && kind === "historicalRecords") {
       status = "complete";
     } else if (index < activeIndex) {

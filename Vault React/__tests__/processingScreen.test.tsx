@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, waitFor } from "@testing-library/react-native";
+import { act, render, waitFor, within } from "@testing-library/react-native";
 import { Animated } from "react-native";
 
 const mockReplace = jest.fn();
@@ -171,5 +171,40 @@ describe("ProcessingScreen", () => {
     expect(screen.getByTestId("processing.step.valueEstimate")).toContainElement(
       screen.getByText("Saving scan result"),
     );
+    expect(screen.queryAllByText("Saving scan result")).toHaveLength(1);
+  });
+
+  it("marks historical records complete once the flow advances into value estimate", async () => {
+    mockProgressUpdates.splice(
+      0,
+      mockProgressUpdates.length,
+      {
+        stage: "historicalRecords",
+        progress: 1,
+        currentSearchSource: "Building final estimate",
+        lookupProgress: {
+          sourceKey: "marketplace",
+          sourceLabel: "Marketplace search",
+          message: "Building final estimate",
+        },
+      },
+    );
+
+    const { ProcessingScreen } =
+      require("@src/features/scan/ProcessingScreen") as typeof import("@src/features/scan/ProcessingScreen");
+    const screen = render(<ProcessingScreen />);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockScanProcess).toHaveBeenCalled();
+    });
+
+    expect(within(screen.getByTestId("processing.step.historicalRecords")).getByText("DONE")).toBeTruthy();
+    expect(within(screen.getByTestId("processing.step.valueEstimate")).getByText("IN PROGRESS")).toBeTruthy();
+    expect(screen.queryAllByText("Building final estimate")).toHaveLength(1);
   });
 });
