@@ -1,3 +1,4 @@
+import type { ScanProgressState } from "@/lib/scan/types";
 import type {
   AppReadinessReport,
   ChatMessage,
@@ -80,7 +81,10 @@ export interface MarketTrendProvider {
 
 export interface AnalysisService {
   isConfigured(): Promise<boolean>;
-  runAnalysis(session: TemporaryScanSession): Promise<ScanResult>;
+  runAnalysis(
+    session: TemporaryScanSession,
+    onProgress?: (progress: ScanProgressState) => void,
+  ): Promise<ScanResult>;
 }
 
 export interface RemoteSearchService {

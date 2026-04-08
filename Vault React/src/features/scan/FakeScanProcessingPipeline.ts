@@ -15,8 +15,18 @@ const STAGES: ProcessingStageKind[] = [
   "historicalRecords"
 ];
 
-const STANDARD_SOURCES = ["eBay", "PCGS", "WorthPoint", "Library Archives"];
-const MYSTERY_SOURCES = ["eBay", "Christie's", "Sotheby's", "WorthPoint"];
+const STANDARD_SOURCES = [
+  t("processing.detail.gemini"),
+  t("processing.detail.marketplace"),
+  t("processing.detail.pcgs"),
+  t("processing.detail.final_estimate"),
+];
+const MYSTERY_SOURCES = [
+  t("processing.detail.gemini"),
+  t("processing.detail.marketplace"),
+  t("processing.detail.auction_records"),
+  t("processing.detail.final_estimate"),
+];
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -55,13 +65,13 @@ export class FakeScanProcessingPipeline implements ScanProcessingPipeline {
     yield {
       stage: STAGES[0],
       progress: 0,
-      currentSearchSource: `${t("processing.searching.format").replace("%s", sources[0])}`,
-      searchingSource: `${t("processing.searching.format").replace("%s", sources[0])}`
+      currentSearchSource: sources[0],
+      searchingSource: sources[0]
     };
 
     for (let index = 0; index < STAGES.length; index += 1) {
       const activeSnapshots = buildSnapshots(STAGES, index, completedIndexes);
-      const currentSearchSource = `${t("processing.searching.format").replace("%s", sources[index])}`;
+      const currentSearchSource = sources[index];
 
       yield {
         stage: STAGES[index],

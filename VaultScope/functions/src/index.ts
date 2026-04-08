@@ -18,7 +18,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { z } from "zod";
 
 import { detectCategory, normalizeCategory } from "./utils/categories";
-import { extractKeywords } from "./utils/keywords";
+import { buildAuctionKeywords } from "./utils/keywords";
 import type {
   AuctionCategory,
   CleanupSummary,
@@ -193,7 +193,12 @@ function prepareAuctionDocument(item: ScrapedItemInput): NormalizedScrapedItem {
     throw new Error("Item source is required");
   }
 
-  const extracted = extractKeywords([title, description].filter(Boolean).join(" "));
+  const extracted = buildAuctionKeywords({
+    title,
+    description,
+    category: item.category ?? null,
+    rawKeywords: normalizeIncomingKeywords(item),
+  });
   const incoming = normalizeIncomingKeywords(item);
   const keywords = Array.from(new Set([...extracted, ...incoming])).slice(0, 25);
 

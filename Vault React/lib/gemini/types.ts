@@ -18,13 +18,15 @@ export type GeminiRetailContext = "flea_market" | "thrift" | "estate_sale" | "au
 export type GeminiDescriptionTone = "skeptical" | "neutral" | "collector";
 
 export interface GeminiIdentifyResponse {
-  category: string;
+  category?: string | null;
   name: string;
   year: number | null;
   origin: string | null;
   objectType?: string | null;
   material?: string | null;
   makerOrBrand?: string | null;
+  mintMark?: string | null;
+  catalogNumber?: string | null;
   condition: GeminiCondition;
   conditionRange: GeminiConditionRange;
   historySummary: string;
@@ -42,10 +44,13 @@ export interface GeminiIdentifyResponse {
   likelyValueCeiling?: number | null;
   valuationConfidence?: number;
   descriptionTone?: GeminiDescriptionTone;
-  estimatedValueLow: number | null;
-  estimatedValueHigh: number | null;
+  estimatedValueLow?: number | null;
+  estimatedValueHigh?: number | null;
   estimatedValueCurrency: string | null;
   estimatedValueRationale: string | null;
+  pricingBasis?: string | null;
+  pricingConfidence?: number | null;
+  isBullion?: boolean | null;
 }
 
 export interface GeminiEmbeddingResponse {

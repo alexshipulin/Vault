@@ -1,3 +1,4 @@
+import type { AnalysisLogDocument } from "@/lib/analysis/logs";
 import type { GeminiIdentifyResponse } from "@/lib/gemini/types";
 
 export type AppraisalMode = "standard" | "mystery";
@@ -15,7 +16,7 @@ export interface PriceEstimate {
   currency: string;
   confidence: number;
   valuationConfidence?: number;
-  source?: "database" | "aiFallback";
+  source?: "database" | "ai_estimate" | "pcgs" | "discogs" | "metals";
   sourceLabel?: string | null;
   matchedSources?: string[];
   comparableCount?: number;
@@ -35,6 +36,7 @@ export interface ScanResult {
   identification: GeminiIdentifyResponse;
   priceEstimate: PriceEstimate;
   scannedAt: string;
+  analysisLog?: AnalysisLogDocument | null;
 }
 
 export interface CollectionItem {

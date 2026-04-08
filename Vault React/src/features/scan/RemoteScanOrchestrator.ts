@@ -1,6 +1,7 @@
 import type { AnalysisService } from "@src/domain/contracts";
 import type { TemporaryScanSession } from "@src/domain/models";
 import type { ScanOrchestrator, ScanProgressUpdate } from "@src/domain/services";
+import type { ScanLookupProgress, ScanProgressState } from "@/lib/scan/types";
 import { performanceMonitor } from "@/lib/performance/monitoring";
 
 function delay(ms: number): Promise<void> {
@@ -17,6 +18,60 @@ function errorMessage(error: unknown): string {
   return "Unknown remote analysis failure";
 }
 
+function mapProgressToStage(progress: ScanProgressState): Pick<ScanProgressUpdate, "stage" | "progress"> {
+  const sourceKey = progress.lookupProgress?.sourceKey;
+
+  switch (progress.step) {
+    case "processing":
+      return {
+        stage: "objectRecognition",
+        progress: progress.status === "complete" ? 0.35 : 0.15,
+      };
+    case "identifying":
+      if (sourceKey === "condition") {
+        return {
+          stage: "conditionAssessment",
+          progress: progress.status === "complete" ? 1 : 0.6,
+        };
+      }
+
+      return {
+        stage: "objectRecognition",
+        progress: progress.status === "complete" ? 1 : 0.7,
+      };
+    case "pricing":
+      return {
+        stage: sourceKey === "auction_records" ? "historicalRecords" : "priceLookup",
+        progress: progress.status === "complete" ? 1 : sourceKey === "auction_records" ? 0.55 : 0.45,
+      };
+    case "saving":
+      return {
+        stage: "historicalRecords",
+        progress: progress.status === "complete" ? 1 : sourceKey === "final_estimate" ? 0.82 : 0.94,
+      };
+    case "done":
+      return {
+        stage: "historicalRecords",
+        progress: 1,
+      };
+  }
+}
+
+function toScanProgressUpdate(progress: ScanProgressState): ScanProgressUpdate {
+  const mapped = mapProgressToStage(progress);
+
+  return {
+    ...mapped,
+    currentSearchSource: progress.lookupProgress?.message ?? progress.currentSearchSource,
+    lookupProgress: progress.lookupProgress ?? null,
+  };
+}
+
+type RemoteQueueItem =
+  | { kind: "progress"; update: ScanProgressUpdate }
+  | { kind: "result"; result: Awaited<ReturnType<AnalysisService["runAnalysis"]>> }
+  | { kind: "error"; error: unknown };
+
 export class RemoteScanOrchestrator implements ScanOrchestrator {
   constructor(
     private readonly analysisService: AnalysisService,
@@ -24,77 +79,61 @@ export class RemoteScanOrchestrator implements ScanOrchestrator {
   ) {}
 
   async *process(session: TemporaryScanSession): AsyncGenerator<ScanProgressUpdate, void, unknown> {
-    yield {
-      stage: "objectRecognition",
-      progress: 0.25,
-      currentSearchSource: "Processing images..."
-    };
-    await delay(this.stageDelayMs);
+    const queue: RemoteQueueItem[] = [];
+    let notifyNext: (() => void) | null = null;
 
-    yield {
-      stage: "objectRecognition",
-      progress: 0.5,
-      currentSearchSource: "Running AI analysis..."
-    };
-    await delay(this.stageDelayMs);
-
-    yield {
-      stage: "objectRecognition",
-      progress: 1
+    const push = (item: RemoteQueueItem) => {
+      queue.push(item);
+      notifyNext?.();
+      notifyNext = null;
     };
 
-    yield {
-      stage: "conditionAssessment",
-      progress: 0.5,
-      currentSearchSource: "Analyzing condition..."
-    };
-    await delay(this.stageDelayMs);
+    void this.analysisService
+      .runAnalysis(session, (progress) => {
+        push({
+          kind: "progress",
+          update: toScanProgressUpdate(progress),
+        });
+      })
+      .then((result) => {
+        push({ kind: "result", result });
+      })
+      .catch((error) => {
+        push({ kind: "error", error });
+      });
 
-    yield {
-      stage: "conditionAssessment",
-      progress: 1
-    };
+    while (true) {
+      if (queue.length === 0) {
+        await new Promise<void>((resolve) => {
+          notifyNext = resolve;
+        });
+      }
 
-    yield {
-      stage: "priceLookup",
-      progress: 0.3,
-      currentSearchSource: "Searching databases..."
-    };
+      const item = queue.shift();
+      if (!item) {
+        continue;
+      }
 
-    try {
-      const result = await this.analysisService.runAnalysis(session);
+      if (item.kind === "progress") {
+        yield item.update;
+        continue;
+      }
 
-      yield {
-        stage: "priceLookup",
-        progress: 0.7,
-        currentSearchSource: "Found comparable items..."
-      };
-      await delay(this.stageDelayMs);
+      if (item.kind === "result") {
+        yield {
+          stage: "historicalRecords",
+          progress: 1,
+          currentSearchSource: item.result.priceData?.sourceLabel ?? "Building final estimate",
+          completedResult: item.result,
+        };
+        return;
+      }
 
-      yield {
-        stage: "priceLookup",
-        progress: 1
-      };
-
-      yield {
-        stage: "historicalRecords",
-        progress: 0.5,
-        currentSearchSource: "Calculating estimate..."
-      };
-      await delay(this.stageDelayMs);
-
-      yield {
-        stage: "historicalRecords",
-        progress: 1,
-        completedResult: result
-      };
-    } catch (error) {
-      performanceMonitor.captureError(error, {
+      performanceMonitor.captureError(item.error, {
         area: "scan.remote-orchestrator",
         mode: session.mode,
       });
-
-      throw new Error(`Remote analysis failed: ${errorMessage(error)}`);
+      throw new Error(`Remote analysis failed: ${errorMessage(item.error)}`);
     }
   }
 }

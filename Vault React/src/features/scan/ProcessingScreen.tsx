@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { performanceMonitor } from "@/lib/performance/monitoring";
+import type { ScanLookupProgress } from "@/lib/scan/types";
 import { useAppState } from "@src/core/app/AppProvider";
 import type { ProcessingStageKind, ScanResult } from "@src/domain/models";
 import { Screen } from "@src/shared/design-system/primitives";
@@ -52,7 +53,8 @@ function deriveSteps(
   currentStage: ProcessingStageKind | null,
   progress: number,
   finalizing: boolean,
-  completed: boolean
+  completed: boolean,
+  activeLookupSourceKey: ScanLookupProgress["sourceKey"] | null
 ): DisplayStep[] {
   if (completed) {
     return DISPLAY_STAGE_ORDER.map((kind) => ({
@@ -71,14 +73,20 @@ function deriveSteps(
   }
 
   const activeIndex = currentStage ? DISPLAY_STAGE_ORDER.indexOf(currentStage) : -1;
+  const valueEstimateOverrideActive =
+    activeLookupSourceKey === "final_estimate" || activeLookupSourceKey === "saving";
 
   return DISPLAY_STAGE_ORDER.map((kind, index) => {
     let status: DisplayStepStatus = "pending";
 
-    if (kind === "valueEstimate") {
+    if (kind === "valueEstimate" && valueEstimateOverrideActive) {
+      status = "active";
+    } else if (kind === "valueEstimate") {
       if (currentStage === "historicalRecords" && progress >= 1) {
         status = "active";
       }
+    } else if (valueEstimateOverrideActive && kind === "historicalRecords") {
+      status = "complete";
     } else if (index < activeIndex) {
       status = "complete";
     } else if (index === activeIndex) {
@@ -121,12 +129,16 @@ export function ProcessingScreen() {
   const [finalizing, setFinalizing] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [currentLookupProgress, setCurrentLookupProgress] = useState<ScanLookupProgress | null>(null);
+  const currentLookupProgressRef = useRef<ScanLookupProgress | null>(null);
 
   const resetProgressState = useCallback(() => {
     setCurrentStage(null);
     setCurrentProgress(0);
     setFinalizing(false);
     setCompleted(false);
+    setCurrentLookupProgress(null);
+    currentLookupProgressRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -186,7 +198,14 @@ export function ProcessingScreen() {
           }
 
           if (update.currentSearchSource) {
-            // Search-source debug copy is intentionally hidden on the production processing screen.
+            const nextLookupProgress =
+              update.lookupProgress ?? {
+                sourceKey: "marketplace",
+                sourceLabel: update.currentSearchSource,
+                message: update.currentSearchSource,
+              };
+            currentLookupProgressRef.current = nextLookupProgress;
+            setCurrentLookupProgress(nextLookupProgress);
           }
 
           if (update.completedResult) {
@@ -206,7 +225,14 @@ export function ProcessingScreen() {
         setLatestResult(null);
         setSelectedItem(null);
         setSelectedItemID(null);
-        Alert.alert(t("processing.error.title"), t("processing.error.message"), [
+        const latestLookupProgress = currentLookupProgressRef.current;
+        const lastStepLabel = latestLookupProgress?.sourceLabel?.trim();
+        const lastStepMessage = latestLookupProgress?.message?.trim();
+        const failureContext = [lastStepLabel, lastStepMessage].filter(Boolean).join(" — ");
+        const errorMessage = failureContext
+          ? `${t("processing.error.message")}\n\nLast step: ${failureContext}`
+          : t("processing.error.message");
+        Alert.alert(t("processing.error.title"), errorMessage, [
           {
             text: t("common.retry"),
             onPress: () => {
@@ -245,11 +271,24 @@ export function ProcessingScreen() {
   };
 
   const steps = useMemo(
-    () => deriveSteps(currentStage, currentProgress, finalizing, completed),
-    [completed, currentProgress, currentStage, finalizing]
+    () =>
+      deriveSteps(
+        currentStage,
+        currentProgress,
+        finalizing,
+        completed,
+        currentLookupProgress?.sourceKey ?? null,
+      ),
+    [completed, currentProgress, currentLookupProgress?.sourceKey, currentStage, finalizing]
   );
 
   const previewUri = currentSession?.capturedImages[0]?.uri;
+  const activeLookupProgress = currentLookupProgress
+    ? {
+        label: currentLookupProgress.sourceLabel?.trim() || null,
+        message: currentLookupProgress.message?.trim() || null,
+      }
+    : null;
 
   if (!currentSession) {
     return (
@@ -311,6 +350,7 @@ export function ProcessingScreen() {
               <ProcessingStepRow
                 title={step.label}
                 status={step.status}
+                detail={step.status === "active" ? activeLookupProgress : null}
                 testID={
                   step.kind === "valueEstimate"
                     ? "processing.step.valueEstimate"
@@ -329,17 +369,25 @@ export function ProcessingScreen() {
 function ProcessingStepRow({
   title,
   status,
+  detail,
   testID
 }: {
   title: string;
   status: DisplayStepStatus;
+  detail?: { label: string | null; message: string | null } | null;
   testID?: string;
 }) {
   return (
     <View style={styles.stepRow} testID={testID}>
       <View style={styles.stepLeft}>
         <StepIndicator status={status} />
-        <Text style={[styles.stepText, status === "pending" && styles.stepTextPending]}>{title}</Text>
+        <View style={styles.stepTextWrap}>
+          <Text style={[styles.stepText, status === "pending" && styles.stepTextPending]}>{title}</Text>
+          {status === "active" && detail?.label ? (
+            <Text style={styles.stepDetailLabel}>{detail.label.toUpperCase()}</Text>
+          ) : null}
+          {status === "active" && detail?.message ? <Text style={styles.stepDetail}>{detail.message}</Text> : null}
+        </View>
       </View>
       <Text
         style={[
@@ -458,15 +506,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A1A1A"
   },
   stepRow: {
-    height: 56,
+    minHeight: 64,
+    paddingVertical: 14,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between"
   },
   stepLeft: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 14
+  },
+  stepTextWrap: {
+    flex: 1,
+    gap: 5,
+  },
+  stepDetailLabel: {
+    color: "#D0D0D0",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.8,
   },
   dot: {
     width: 8,
@@ -502,15 +562,22 @@ const styles = StyleSheet.create({
   stepText: {
     color: colors.foreground,
     fontSize: 13,
-    fontWeight: "400"
+    fontWeight: "500"
   },
   stepTextPending: {
     color: "#444444"
   },
+  stepDetail: {
+    color: "#E0E0E0",
+    fontSize: 13,
+    fontWeight: "400",
+    lineHeight: 18,
+  },
   stepStatus: {
     color: "#888888",
     fontSize: 12,
-    fontWeight: "400"
+    fontWeight: "400",
+    alignSelf: "center",
   },
   stepStatusComplete: {
     color: "#444444",
@@ -519,7 +586,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2
   },
   stepStatusActive: {
-    color: "#333333",
+    color: "#7A7A7A",
     fontSize: 9,
     fontWeight: "700",
     letterSpacing: 2

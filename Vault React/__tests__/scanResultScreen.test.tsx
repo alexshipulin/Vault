@@ -8,6 +8,7 @@ const mockSetSelectedItem = jest.fn();
 const mockSetSelectedItemID = jest.fn();
 const mockBumpCollectionVersion = jest.fn();
 const mockCollectionSave = jest.fn().mockResolvedValue(undefined);
+const mockSetClipboardString = jest.fn().mockResolvedValue(undefined);
 
 jest.mock("expo-router", () => ({
   useRouter: () => ({
@@ -18,6 +19,10 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({
     resultId: "result-ai-fallback"
   })
+}));
+
+jest.mock("expo-clipboard", () => ({
+  setStringAsync: (...args: unknown[]) => mockSetClipboardString(...args),
 }));
 
 jest.mock("@src/core/app/AppProvider", () => ({
@@ -49,7 +54,27 @@ jest.mock("@src/core/app/AppProvider", () => ({
       },
       rawAIResponse: "{}",
       scannedAt: "2026-04-01T00:00:00.000Z",
-      inputImageHashes: []
+      inputImageHashes: [],
+      analysisLog: {
+        version: 1,
+        createdAt: "2026-04-01T00:00:00.000Z",
+        scanId: "result-ai-fallback",
+        appraisalMode: "standard",
+        categoryHint: "general",
+        detectedCategory: "coin",
+        itemName: "1909-S VDB Lincoln Wheat Cent",
+        finalSource: "AI Estimate",
+        entries: [
+          {
+            at: "2026-04-01T00:00:00.000Z",
+            elapsedMs: 100,
+            kind: "stage",
+            title: "Gemini AI identification",
+            message: "Checked the item with Gemini AI.",
+          },
+        ],
+        copyText: "VaultScope Analysis Log\nScan ID: result-ai-fallback",
+      },
     },
     currentSession: null,
     selectedItem: {
@@ -125,6 +150,17 @@ describe("ScanResultScreen", () => {
           photoUris: ["file:///tmp/capture.jpg"],
         }),
       );
+    });
+  });
+
+  it("copies the analysis log from the result footer when requested", async () => {
+    const { ScanResultScreen } = require("@src/features/scan/ScanResultScreen") as typeof import("@src/features/scan/ScanResultScreen");
+    const screen = render(<ScanResultScreen />);
+
+    fireEvent.press(screen.getByTestId("result.copyLogsButton"));
+
+    await waitFor(() => {
+      expect(mockSetClipboardString).toHaveBeenCalledWith("VaultScope Analysis Log\nScan ID: result-ai-fallback");
     });
   });
 });

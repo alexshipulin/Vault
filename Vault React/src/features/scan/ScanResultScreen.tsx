@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Share } from "react-native";
+import { Alert, Share } from "react-native";
 
 import { useAppState } from "@src/core/app/AppProvider";
 import type { CollectibleItem, PreferredCurrency } from "@src/domain/models";
@@ -74,6 +75,17 @@ export function ScanResultScreen() {
       `${presentation.confidenceLabel ?? t("result.confidence")}: ${Math.round((presentation.confidence ?? result.confidence) * 100)}%`,
     ].join("\n");
   }, [presentation, result]);
+
+  const logCopyText = result?.analysisLog?.copyText?.trim() ?? "";
+
+  const copyLogs = useCallback(async () => {
+    if (!logCopyText) {
+      return;
+    }
+
+    await Clipboard.setStringAsync(logCopyText);
+    Alert.alert(t("result.copy_logs_done.title"), t("result.copy_logs_done.message"));
+  }, [logCopyText]);
 
   const save = useCallback(async () => {
     if (!result || isSaved) {
@@ -194,6 +206,17 @@ export function ScanResultScreen() {
       model={presentation}
       onBack={() => router.back()}
       actions={actions}
+      footerSecondaryAction={
+        logCopyText
+          ? {
+              title: t("result.copy_logs"),
+              onPress: () => {
+                void copyLogs();
+              },
+              testID: "result.copyLogsButton",
+            }
+          : undefined
+      }
       emptyStateText="Result unavailable."
       testIDs={{
         screen: "result.screen",
@@ -207,6 +230,7 @@ export function ScanResultScreen() {
         diagnostics: "result.diagnostics",
         summary: "result.summary",
         disclaimer: "result.disclaimer",
+        footerSecondaryAction: "result.copyLogsButton",
       }}
     />
   );

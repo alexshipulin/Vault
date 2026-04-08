@@ -1,8 +1,10 @@
+import type { AnalysisLogDocument } from "@/lib/analysis/logs";
+
 export type CollectibleCategory = "coin" | "vinyl" | "antique" | "card";
 export type ValuationMode = "standard" | "mystery";
 export type ValuationEvidenceStrength = "weak" | "moderate" | "strong";
 export type OverlayShape = "circle" | "rectangle" | "square";
-export type PriceSource = "pcgs" | "discogs" | "ebay" | "antiqueDB" | "aiEstimate";
+export type PriceSource = "pcgs" | "discogs" | "ebay" | "antiqueDB" | "aiEstimate" | "metals";
 export type VaultEnvironment = "production" | "mock";
 export type ScanMode = "standard" | "mystery";
 export type ChatRole = "user" | "assistant";
@@ -63,6 +65,7 @@ export interface ScanResult {
   rawAIResponse: string;
   scannedAt: string;
   inputImageHashes: string[];
+  analysisLog?: AnalysisLogDocument | null;
 }
 
 export interface CollectibleItem {
@@ -175,7 +178,18 @@ export interface AppReadinessReport {
   searchIndexReady: boolean;
   geminiConfigured: boolean;
   remoteAnalysisReady: boolean;
+  verifiedAt: string;
+  checks: AppReadinessCheck[];
   messages: string[];
+}
+
+export type AppReadinessCheckStatus = "verified" | "failed" | "missing" | "configured" | "skipped";
+
+export interface AppReadinessCheck {
+  key: "firebase" | "firestore" | "gemini" | "pcgs" | "discogs" | "metals" | "persistence";
+  label: string;
+  status: AppReadinessCheckStatus;
+  message: string;
 }
 
 export const COLLECTIBLE_CATEGORIES: CollectibleCategory[] = ["coin", "vinyl", "antique", "card"];
@@ -205,7 +219,8 @@ export const PRICE_SOURCE_LABELS: Record<PriceSource, string> = {
   discogs: "Discogs",
   ebay: "eBay",
   antiqueDB: "Antique Database",
-  aiEstimate: "AI Estimate"
+  aiEstimate: "AI Estimate",
+  metals: "Metals API"
 };
 
 export const CATEGORY_DISPLAY_NAMES: Record<CollectibleCategory, string> = {

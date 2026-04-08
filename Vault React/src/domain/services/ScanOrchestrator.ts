@@ -1,3 +1,4 @@
+import type { ScanLookupProgress } from "@/lib/scan/types";
 import type {
   ProcessingStageKind as DomainProcessingStageKind,
   ScanResult,
@@ -10,6 +11,7 @@ export type ScanProgressUpdate = {
   stage: ProcessingStageKind;
   progress: number;
   currentSearchSource?: string;
+  lookupProgress?: ScanLookupProgress | null;
   completedResult?: ScanResult;
 };
 

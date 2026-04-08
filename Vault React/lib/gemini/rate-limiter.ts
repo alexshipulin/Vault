@@ -28,7 +28,11 @@ export class GeminiRateLimiter {
 
   schedule<T>(run: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.queue.push({ run, resolve, reject });
+      this.queue.push({
+        run: run as () => Promise<unknown>,
+        resolve: resolve as (value: unknown) => void,
+        reject,
+      });
       void this.processQueue();
     });
   }

@@ -21,7 +21,7 @@ import type {
 import type { AppraisalMode } from "@/lib/types";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_IDENTIFY_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const DEFAULT_IDENTIFY_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 3;
@@ -48,6 +48,7 @@ const IDENTIFY_RESPONSE_SCHEMA = {
     "objectType",
     "material",
     "makerOrBrand",
+    "catalogNumber",
     "condition",
     "conditionRange",
     "historySummary",
@@ -67,6 +68,9 @@ const IDENTIFY_RESPONSE_SCHEMA = {
     "descriptionTone",
     "estimatedValueLow",
     "estimatedValueHigh",
+    "pricingBasis",
+    "pricingConfidence",
+    "isBullion",
     "estimatedValueCurrency",
     "estimatedValueRationale",
   ],
@@ -78,6 +82,7 @@ const IDENTIFY_RESPONSE_SCHEMA = {
     objectType: { type: ["string", "null"] },
     material: { type: ["string", "null"] },
     makerOrBrand: { type: ["string", "null"] },
+    catalogNumber: { type: ["string", "null"] },
     condition: {
       type: "string",
       enum: ["mint", "near_mint", "fine", "very_good", "good", "poor"],
@@ -129,6 +134,9 @@ const IDENTIFY_RESPONSE_SCHEMA = {
     },
     estimatedValueLow: { type: ["number", "null"] },
     estimatedValueHigh: { type: ["number", "null"] },
+    pricingBasis: { type: ["string", "null"] },
+    pricingConfidence: { type: ["number", "null"] },
+    isBullion: { type: ["boolean", "null"] },
     estimatedValueCurrency: { type: ["string", "null"] },
     estimatedValueRationale: { type: ["string", "null"] },
   },
@@ -159,8 +167,6 @@ const IDENTIFY_RESPONSE_SCHEMA = {
     "descriptionTone",
     "estimatedValueLow",
     "estimatedValueHigh",
-    "estimatedValueCurrency",
-    "estimatedValueRationale",
   ],
 } as const;
 
@@ -305,6 +311,14 @@ function normalizeBoolean(value: unknown): boolean {
   return value === true;
 }
 
+function normalizeNullableBoolean(value: unknown): boolean | null {
+  if (value === true || value === false) {
+    return value;
+  }
+
+  return null;
+}
+
 function normalizeMarketTier(value: unknown, appraisalMode: AppraisalMode): GeminiMarketTier {
   if (
     value === "junk" ||
@@ -396,6 +410,16 @@ function parseIdentifyResponse(
     estimatedValueLow != null && estimatedValueHigh != null
       ? Math.max(estimatedValueLow, estimatedValueHigh)
       : estimatedValueHigh;
+  const normalizedPricingBasis = limitSentences(
+    normalizeNullableString(parsed.pricingBasis ?? parsed.estimatedValueRationale),
+    1,
+  );
+  const normalizedPricingConfidence = clampConfidence(
+    parsed.pricingConfidence ?? parsed.valuationConfidence,
+  );
+  const normalizedValuationConfidence = clampConfidence(
+    parsed.valuationConfidence ?? parsed.pricingConfidence,
+  );
   const response: GeminiIdentifyResponse = {
     category:
       typeof parsed.category === "string" && parsed.category.trim().length > 0
@@ -410,6 +434,7 @@ function parseIdentifyResponse(
     objectType: normalizeNullableString(parsed.objectType),
     material: normalizeNullableString(parsed.material),
     makerOrBrand: normalizeNullableString(parsed.makerOrBrand),
+    catalogNumber: normalizeNullableString(parsed.catalogNumber),
     condition,
     conditionRange: normalizeConditionRange(parsed.conditionRange, condition),
     historySummary:
@@ -428,12 +453,15 @@ function parseIdentifyResponse(
     pricingEvidenceStrength: normalizePricingEvidenceStrength(parsed.pricingEvidenceStrength),
     likelyRetailContext: normalizeRetailContext(parsed.likelyRetailContext, appraisalMode),
     likelyValueCeiling: normalizeEstimatedValue(parsed.likelyValueCeiling),
-    valuationConfidence: clampConfidence(parsed.valuationConfidence),
+    valuationConfidence: normalizedValuationConfidence,
     descriptionTone: normalizeDescriptionTone(parsed.descriptionTone, appraisalMode),
     estimatedValueLow: normalizedLow ?? null,
     estimatedValueHigh: normalizedHigh ?? null,
     estimatedValueCurrency: normalizeCurrencyCode(parsed.estimatedValueCurrency),
-    estimatedValueRationale: limitSentences(normalizeNullableString(parsed.estimatedValueRationale), 1),
+    estimatedValueRationale: normalizedPricingBasis,
+    pricingBasis: normalizedPricingBasis,
+    pricingConfidence: normalizedPricingConfidence,
+    isBullion: normalizeNullableBoolean(parsed.isBullion),
   };
 
   response.historySummary =

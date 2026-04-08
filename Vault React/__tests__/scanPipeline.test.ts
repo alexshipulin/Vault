@@ -5,6 +5,9 @@ const mockUploadScanImage = jest.fn();
 const mockSearchComparableAuctions = jest.fn();
 const mockIdentifyItem = jest.fn();
 const mockProcessImage = jest.fn();
+const mockPcgsSafeLookup = jest.fn();
+const mockDiscogsLookupVinyl = jest.fn();
+const mockMetalsEstimateBullionValue = jest.fn();
 
 jest.mock("@/lib/firebase/config", () => ({
   getVaultScopeAuth: () => mockGetVaultScopeAuth(),
@@ -41,6 +44,15 @@ jest.mock("@/lib/firebase/utils", () => ({
           .filter((keyword) => keyword.length > 2),
       ),
     ).slice(0, 10),
+  buildEnhancedSearchQuery: (identification: { searchKeywords?: string[]; year?: number | null }) =>
+    Array.from(
+      new Set(
+        [
+          ...(identification.searchKeywords ?? []),
+          identification.year ? String(identification.year) : null,
+        ].filter((keyword): keyword is string => typeof keyword === "string" && keyword.length > 0),
+      ),
+    ).slice(0, 10),
 }));
 
 jest.mock("@/lib/gemini/client", () => ({
@@ -49,6 +61,7 @@ jest.mock("@/lib/gemini/client", () => ({
       return mockIdentifyItem(...args);
     }
   },
+  GeminiInvalidJsonError: class extends Error {},
 }));
 
 jest.mock("@/lib/vision/processor", () => ({
@@ -56,6 +69,24 @@ jest.mock("@/lib/vision/processor", () => ({
     processImage(...args: unknown[]) {
       return mockProcessImage(...args);
     }
+  },
+}));
+
+jest.mock("@/src/services/pricing/PCGSClient", () => ({
+  pcgsClient: {
+    safeLookup: (...args: unknown[]) => mockPcgsSafeLookup(...args),
+  },
+}));
+
+jest.mock("@/src/services/pricing/DiscogsClient", () => ({
+  discogsClient: {
+    lookupVinyl: (...args: unknown[]) => mockDiscogsLookupVinyl(...args),
+  },
+}));
+
+jest.mock("@/src/services/pricing/MetalsClient", () => ({
+  metalsClient: {
+    estimateBullionValue: (...args: unknown[]) => mockMetalsEstimateBullionValue(...args),
   },
 }));
 
@@ -98,6 +129,9 @@ function seededIdentification(overrides: Record<string, unknown> = {}) {
     descriptionTone: "collector",
     estimatedValueLow: 900,
     estimatedValueHigh: 1300,
+    pricingBasis: "Based on rarity, date, mint mark, and visible wear.",
+    pricingConfidence: 0.86,
+    isBullion: false,
     estimatedValueCurrency: "USD",
     estimatedValueRationale: "Based on rarity, date, mint mark, and visible wear.",
     ...overrides,
@@ -113,6 +147,9 @@ describe("ScanPipeline", () => {
     mockUploadScanImage.mockResolvedValue("https://example.com/image.jpg");
     mockSearchComparableAuctions.mockResolvedValue([]);
     mockIdentifyItem.mockResolvedValue(seededIdentification());
+    mockPcgsSafeLookup.mockResolvedValue(null);
+    mockDiscogsLookupVinyl.mockResolvedValue(null);
+    mockMetalsEstimateBullionValue.mockResolvedValue(null);
     mockProcessImage.mockResolvedValue({
       originalUri: "file:///tmp/test.jpg",
       croppedUri: "file:///tmp/test-crop.jpg",
@@ -141,7 +178,16 @@ describe("ScanPipeline", () => {
     );
   });
 
-  it("uses database-derived pricing when close comparables contain valid prices", async () => {
+  it("uses PCGS pricing for coins when CoinFacts returns a match", async () => {
+    mockPcgsSafeLookup.mockResolvedValue({
+      coinName: "1909-S VDB Lincoln Cent",
+      pcgsNo: 2426,
+      priceGuideValues: { F12: 950, VF20: 1250, MS63: 1300 },
+      averageCirculatedValue: 1100,
+      averageUncirculatedValue: 1300,
+      source: "pcgs",
+      fetchedAt: "2026-04-03T00:00:00.000Z",
+    });
     mockSearchComparableAuctions.mockResolvedValue([
       {
         id: "a",
@@ -191,11 +237,135 @@ describe("ScanPipeline", () => {
     const pipeline = new ScanPipeline();
     const result = await pipeline.executeScan(["file:///tmp/test.jpg"], "coin");
 
-    expect(result.priceEstimate.source).toBe("database");
+    expect(result.priceEstimate.source).toBe("pcgs");
     expect(result.priceEstimate.low).toBe(1100);
     expect(result.priceEstimate.high).toBe(1300);
-    expect(result.priceEstimate.needsReview).toBe(false);
-    expect(result.priceEstimate.matchedSources).toEqual(expect.arrayContaining(["ebay", "heritage"]));
+    expect(result.priceEstimate.sourceLabel).toBe("PCGS Price Guide");
+  });
+
+  it("falls back to the AI estimate in standard mode when Firestore comparables return no results", async () => {
+    mockIdentifyItem.mockResolvedValue(
+      seededIdentification({
+        category: "general",
+        name: "Unknown Brass Trinket Box",
+        objectType: "trinket box",
+        material: "brass",
+        confidence: 0.66,
+        valuationConfidence: 0.58,
+        pricingConfidence: 0.58,
+        estimatedValueLow: 18,
+        estimatedValueHigh: 32,
+        pricingBasis: "Common decorative brass trinket boxes usually trade in a low resale band.",
+        estimatedValueRationale: "Common decorative brass trinket boxes usually trade in a low resale band.",
+      }),
+    );
+    mockSearchComparableAuctions.mockResolvedValue([]);
+
+    const { ScanPipeline } = require("@/lib/scan/pipeline") as typeof import("@/lib/scan/pipeline");
+    const pipeline = new ScanPipeline();
+    const result = await pipeline.executeScan(["file:///tmp/test.jpg"], "general");
+
+    expect(result.priceEstimate.source).toBe("ai_estimate");
+    expect(result.priceEstimate.low).toBe(18);
+    expect(result.priceEstimate.high).toBe(32);
+  });
+
+  it("tightens weak mystery AI fallback ranges for cheap flea-market items", async () => {
+    mockIdentifyItem.mockResolvedValue(
+      seededIdentification({
+        category: "general",
+        name: "Carved Red Dragon Motif Box",
+        year: null,
+        origin: null,
+        objectType: "box",
+        material: "lacquer",
+        confidence: 0.41,
+        valuationConfidence: 0.3,
+        pricingConfidence: 0.3,
+        estimatedValueLow: 20,
+        estimatedValueHigh: 60,
+        pricingBasis: "Likely a decorative secondary-market trinket box without strong maker evidence.",
+        estimatedValueRationale: "Likely a decorative secondary-market trinket box without strong maker evidence.",
+        marketTier: "decor",
+        pricingEvidenceStrength: "weak",
+        likelyRetailContext: "flea_market",
+        likelyValueCeiling: 100,
+        requiresMeasurements: true,
+        requiresMorePhotos: true,
+        isLikelyMassProduced: true,
+        valuationWarnings: [
+          "Estimate is conservative because flea-market items are usually low-value unless proven otherwise.",
+        ],
+        searchKeywords: ["carved", "red", "dragon", "box"],
+        distinguishingFeatures: ["dragon motif", "red carved exterior"],
+      }),
+    );
+    mockSearchComparableAuctions.mockResolvedValue([]);
+
+    const { ScanPipeline } = require("@/lib/scan/pipeline") as typeof import("@/lib/scan/pipeline");
+    const pipeline = new ScanPipeline();
+    const result = await pipeline.executeScan(["file:///tmp/test.jpg"], "general", "mystery");
+
+    expect(result.priceEstimate.source).toBe("ai_estimate");
+    expect(result.priceEstimate.low).toBe(20);
+    expect(result.priceEstimate.high).toBe(30);
+    expect(result.priceEstimate.valuationMode).toBe("mystery");
+  });
+
+  it("prefers the AI estimate in standard mode when comparable confidence stays below 0.5", async () => {
+    mockIdentifyItem.mockResolvedValue(
+      seededIdentification({
+        category: "general",
+        name: "Decorative Brass Trinket Box",
+        objectType: "trinket box",
+        material: "brass",
+        confidence: 0.72,
+        valuationConfidence: 0.57,
+        pricingConfidence: 0.57,
+        estimatedValueLow: 20,
+        estimatedValueHigh: 35,
+        pricingBasis: "Typical decorative brass trinket boxes sell in a modest secondary-market range.",
+        estimatedValueRationale: "Typical decorative brass trinket boxes sell in a modest secondary-market range.",
+      }),
+    );
+    mockSearchComparableAuctions.mockResolvedValue([
+      {
+        id: "weak-standard-a",
+        title: "Decorative brass box",
+        description: "General brass decor box.",
+        priceRealized: 140,
+        saleDate: "2026-01-01",
+        imageUrl: null,
+        source: "heritage",
+        category: "general",
+        material: "brass",
+        originCountry: "Unknown",
+        auctionHouse: "Heritage",
+        keywords: ["decorative", "brass", "box"],
+      },
+      {
+        id: "weak-standard-b",
+        title: "Decorative metal keepsake box",
+        description: "Unmarked keepsake box.",
+        priceRealized: 210,
+        saleDate: "2026-01-02",
+        imageUrl: null,
+        source: "liveauctioneers",
+        category: "general",
+        material: "brass",
+        originCountry: "Unknown",
+        auctionHouse: "LiveAuctioneers",
+        keywords: ["decorative", "metal", "box"],
+      },
+    ]);
+
+    const { ScanPipeline } = require("@/lib/scan/pipeline") as typeof import("@/lib/scan/pipeline");
+    const pipeline = new ScanPipeline();
+    const result = await pipeline.executeScan(["file:///tmp/test.jpg"], "general");
+
+    expect(result.priceEstimate.source).toBe("ai_estimate");
+    expect(result.priceEstimate.low).toBe(20);
+    expect(result.priceEstimate.high).toBe(35);
   });
 
   it("suppresses expensive outliers when cheaper close matches exist", async () => {
@@ -290,9 +460,9 @@ describe("ScanPipeline", () => {
     const pipeline = new ScanPipeline();
     const result = await pipeline.executeScan(["file:///tmp/test.jpg"], "general");
 
-    expect(result.priceEstimate.source).toBe("database");
-    expect(result.priceEstimate.high).toBeLessThan(100);
-    expect(result.priceEstimate.low).toBeLessThanOrEqual(30);
+    expect(result.priceEstimate.source).toBe("ai_estimate");
+    expect(result.priceEstimate.high).toBeLessThanOrEqual(90);
+    expect(result.priceEstimate.low).toBeLessThanOrEqual(50);
   });
 
   it("uses AI fallback pricing with warnings when database matches are weak", async () => {
@@ -339,9 +509,9 @@ describe("ScanPipeline", () => {
     const pipeline = new ScanPipeline();
     const result = await pipeline.executeScan(["file:///tmp/test.jpg"], "general", "mystery");
 
-    expect(result.priceEstimate.source).toBe("aiFallback");
+    expect(result.priceEstimate.source).toBe("ai_estimate");
     expect(result.priceEstimate.low).toBe(40);
-    expect(result.priceEstimate.high).toBe(80);
+    expect(result.priceEstimate.high).toBe(55);
     expect(result.priceEstimate.needsReview).toBe(true);
     expect(result.priceEstimate.valuationMode).toBe("mystery");
     expect(result.priceEstimate.valuationConfidence).toBeLessThanOrEqual(0.42);
@@ -412,8 +582,9 @@ describe("ScanPipeline", () => {
     const pipeline = new ScanPipeline();
     const result = await pipeline.executeScan(["file:///tmp/test.jpg"], "general", "mystery");
 
-    expect(result.priceEstimate.source).toBe("aiFallback");
-    expect(result.priceEstimate.high).toBeLessThanOrEqual(100);
+    expect(result.priceEstimate.source).toBe("ai_estimate");
+    expect(result.priceEstimate.low).toBe(25);
+    expect(result.priceEstimate.high).toBeLessThanOrEqual(40);
     expect(result.priceEstimate.valuationWarnings).toEqual(
       expect.arrayContaining([
         "Premium auction examples were found, but your item lacks evidence for that attribution.",
@@ -535,5 +706,147 @@ describe("ScanPipeline", () => {
         "Additional photos are required for a reliable appraisal.",
       ]),
     );
+  });
+
+  it("emits friendly source progress for a standard coin scan", async () => {
+    mockSearchComparableAuctions.mockResolvedValue([]);
+    mockPcgsSafeLookup.mockResolvedValue(null);
+
+    const { ScanPipeline } = require("@/lib/scan/pipeline") as typeof import("@/lib/scan/pipeline");
+    const sourceLines: string[] = [];
+    const pipeline = new ScanPipeline({
+      onProgress: (progress) => {
+        if (progress.currentSearchSource) {
+          sourceLines.push(progress.currentSearchSource);
+        }
+      },
+    });
+
+    await pipeline.executeScan(["file:///tmp/test.jpg"], "coin");
+
+    expect(sourceLines).toEqual(
+      expect.arrayContaining([
+        "Preparing scan images",
+        "Checking Gemini AI identification",
+        "Assessing visible wear and overall condition",
+        "Searching recent marketplace sales",
+        "Checking PCGS price guide",
+        "Building final estimate",
+        "Saving scan result",
+      ]),
+    );
+  });
+
+  it("emits bullion-specific source progress when Gemini flags a bullion coin", async () => {
+    mockIdentifyItem.mockResolvedValue(
+      seededIdentification({
+        name: "American Silver Eagle",
+        year: 2020,
+        searchKeywords: ["american", "silver", "eagle", "2020", "1oz"],
+        isBullion: true,
+      }),
+    );
+    mockMetalsEstimateBullionValue.mockResolvedValue({
+      metalContent: { metal: "silver", troyOz: 1 },
+      spotValue: 34,
+      estimatedLow: 32.3,
+      estimatedHigh: 39.1,
+      spotPrice: 34,
+      source: "metals_api",
+    });
+
+    const { ScanPipeline } = require("@/lib/scan/pipeline") as typeof import("@/lib/scan/pipeline");
+    const sourceLines: string[] = [];
+    const pipeline = new ScanPipeline({
+      onProgress: (progress) => {
+        if (progress.currentSearchSource) {
+          sourceLines.push(progress.currentSearchSource);
+        }
+      },
+    });
+
+    await pipeline.executeScan(["file:///tmp/test.jpg"], "coin");
+
+    expect(sourceLines).toContain("Checking live metals spot prices");
+  });
+
+  it("emits Discogs marketplace progress for vinyl scans", async () => {
+    mockIdentifyItem.mockResolvedValue(
+      seededIdentification({
+        category: "vinyl",
+        name: "Miles Davis - Kind of Blue",
+        year: 1959,
+        objectType: "record",
+        material: "vinyl",
+        makerOrBrand: "Columbia",
+        catalogNumber: "CL 1355",
+        searchKeywords: ["miles", "davis", "kind", "blue", "columbia", "lp"],
+      }),
+    );
+
+    const { ScanPipeline } = require("@/lib/scan/pipeline") as typeof import("@/lib/scan/pipeline");
+    const sourceLines: string[] = [];
+    const pipeline = new ScanPipeline({
+      onProgress: (progress) => {
+        if (progress.currentSearchSource) {
+          sourceLines.push(progress.currentSearchSource);
+        }
+      },
+    });
+
+    await pipeline.executeScan(["file:///tmp/test.jpg"], "general");
+
+    expect(sourceLines).toContain("Checking Discogs marketplace history");
+  });
+
+  it("keeps mystery scans on AI plus marketplace and auction cross-check messaging", async () => {
+    mockIdentifyItem.mockResolvedValue(
+      seededIdentification({
+        category: "general",
+        name: "Decorative Red Carved Box",
+        year: null,
+        objectType: "box",
+        material: "lacquer",
+        searchKeywords: ["decorative", "carved", "box"],
+      }),
+    );
+    mockSearchComparableAuctions.mockResolvedValue([
+      {
+        id: "mystery-auction",
+        title: "Decorative carved box",
+        description: "Auction listing for a carved decorative box.",
+        priceRealized: 42,
+        saleDate: "2026-01-03",
+        imageUrl: null,
+        source: "heritage",
+        category: "general",
+        material: "lacquer",
+        originCountry: "Unknown",
+        auctionHouse: "Heritage",
+        keywords: ["decorative", "carved", "box"],
+      },
+    ]);
+
+    const { ScanPipeline } = require("@/lib/scan/pipeline") as typeof import("@/lib/scan/pipeline");
+    const sourceLines: string[] = [];
+    const pipeline = new ScanPipeline({
+      onProgress: (progress) => {
+        if (progress.currentSearchSource) {
+          sourceLines.push(progress.currentSearchSource);
+        }
+      },
+    });
+
+    await pipeline.executeScan(["file:///tmp/test.jpg"], "general", "mystery");
+
+    expect(sourceLines).toEqual(
+      expect.arrayContaining([
+        "Checking Gemini AI identification",
+        "Searching recent marketplace sales",
+        "Cross-checking auction records",
+      ]),
+    );
+    expect(sourceLines).not.toContain("Checking PCGS price guide");
+    expect(sourceLines).not.toContain("Checking Discogs marketplace history");
   });
 });

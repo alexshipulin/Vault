@@ -310,6 +310,20 @@ function mergeUniqueResults(resultSets: SearchResult[]): SearchResult {
   return merged;
 }
 
+function resolveSearchKeywords(queryInput: string | string[]): string[] {
+  if (Array.isArray(queryInput)) {
+    return Array.from(
+      new Set(
+        queryInput
+          .map((keyword) => keyword.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ).slice(0, 10);
+  }
+
+  return extractSearchKeywords(queryInput);
+}
+
 export class AntiqueSearchEngine {
   private readonly defaultLimit: number;
 
@@ -371,11 +385,11 @@ export class AntiqueSearchEngine {
   }
 
   async searchComparableAuctions(
-    queryText: string,
+    queryText: string | string[],
     filters: SearchFilters = {},
     limit = this.defaultLimit,
   ): Promise<SearchResult> {
-    const keywords = extractSearchKeywords(queryText);
+    const keywords = resolveSearchKeywords(queryText);
 
     if (keywords.length === 0) {
       return [];

@@ -12,7 +12,7 @@ import type {
 } from "@/lib/gemini/types";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const IDENTIFY_MODEL = "gemini-2.0-flash-exp";
+const IDENTIFY_MODEL = "gemini-2.0-flash";
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 3;

@@ -9,6 +9,11 @@ type ExtraConfig = {
   firebaseMessagingSenderId?: string;
   geminiApiKey?: string;
   geminiModel?: string;
+  pcgsUsername?: string;
+  pcgsEmail?: string;
+  pcgsPassword?: string;
+  metalsApiKey?: string;
+  discogsToken?: string;
   vaultEnvironment?: string;
   vaultSeedData?: string;
   vaultFastProcessing?: string;
@@ -47,6 +52,13 @@ export const AppConfig = {
   },
   geminiApiKey: optionalEnv(getExtraConfig().geminiApiKey),
   geminiModel: optionalEnv(getExtraConfig().geminiModel),
+  metalsApiKey: optionalEnv(getExtraConfig().metalsApiKey),
+  discogsToken: optionalEnv(getExtraConfig().discogsToken),
+  pcgs: {
+    username: optionalEnv(getExtraConfig().pcgsUsername),
+    email: optionalEnv(getExtraConfig().pcgsEmail),
+    password: optionalEnv(getExtraConfig().pcgsPassword),
+  },
   debugSinkUrl: optionalEnv(getExtraConfig().vaultDebugSinkUrl),
   vaultEnvironment: getExtraConfig().vaultEnvironment === "production" ? "production" : "mock",
   flags: {

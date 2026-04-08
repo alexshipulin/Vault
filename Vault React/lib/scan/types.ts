@@ -1,3 +1,4 @@
+import type { AnalysisLogDocument } from "@/lib/analysis/logs";
 import type { GeminiIdentifyResponse } from "@/lib/gemini/types";
 import type { AntiqueAuction } from "@/lib/firebase/types";
 import type { PriceEstimate } from "@/lib/types";
@@ -25,10 +26,30 @@ export type ScanLoadingStep =
   | "saving"
   | "done";
 
+export type ScanLookupSourceKey =
+  | "image_preparation"
+  | "gemini"
+  | "condition"
+  | "marketplace"
+  | "auction_records"
+  | "pcgs"
+  | "discogs"
+  | "metals"
+  | "final_estimate"
+  | "saving";
+
+export interface ScanLookupProgress {
+  sourceKey: ScanLookupSourceKey;
+  sourceLabel: string;
+  message: string;
+}
+
 export interface ScanProgressState {
   step: ScanLoadingStep;
   label: string;
   status: ScanStepStatus;
+  currentSearchSource?: string;
+  lookupProgress?: ScanLookupProgress | null;
 }
 
 export interface ScanResult {
@@ -42,6 +63,7 @@ export interface ScanResult {
   priceEstimate: PriceEstimate;
   comparableAuctions: AntiqueAuction[];
   scannedAt: string;
+  analysisLog?: AnalysisLogDocument | null;
 }
 
 export class ScanPipelineError extends Error {

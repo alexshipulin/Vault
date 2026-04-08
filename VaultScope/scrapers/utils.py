@@ -68,6 +68,44 @@ STOP_WORDS = {
     "with",
 }
 
+GENERIC_NOISE = {
+    "old",
+    "nice",
+    "rare",
+    "piece",
+    "pieces",
+    "beautiful",
+    "wonderful",
+}
+
+SHORT_IDENTIFIERS = {
+    "1c",
+    "2c",
+    "3c",
+    "5c",
+    "10c",
+    "20c",
+    "25c",
+    "50c",
+    "cc",
+    "lp",
+    "ep",
+    "45",
+    "78",
+    "nm",
+    "vg",
+    "xf",
+    "au",
+    "ms",
+    "pr",
+    "pf",
+    "blp",
+    "cl",
+    "cs",
+}
+
+COIN_MINT_MARKS = {"s", "d", "p", "o", "cc"}
+
 CATEGORY_KEYWORDS = {
     "furniture": {
         "armchair",
@@ -261,12 +299,21 @@ def extract_estimate_range(text: str) -> tuple[float | None, float | None]:
 
 
 def extract_keywords(text: str) -> list[str]:
-    tokens = re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)?", text.lower())
+    normalized = text.lower().replace("’", "").replace("'", "")
+    tokens = [token for token in re.split(r"[^a-z0-9]+", normalized) if token]
     unique_tokens: list[str] = []
     seen: set[str] = set()
 
     for token in tokens:
-        if len(token) <= 2 or token in STOP_WORDS or token.isdigit():
+        if token in STOP_WORDS or token in GENERIC_NOISE:
+            continue
+        if re.fullmatch(r"\d{4}", token) or re.fullmatch(r"\d{4}s", token):
+            pass
+        elif token in SHORT_IDENTIFIERS or token in COIN_MINT_MARKS:
+            pass
+        elif re.fullmatch(r"[a-z]{1,4}\d{2,}[a-z]*", token) or re.fullmatch(r"\d+[a-z]{1,4}", token):
+            pass
+        elif len(token) < 3 or token.isdigit():
             continue
         if token in seen:
             continue

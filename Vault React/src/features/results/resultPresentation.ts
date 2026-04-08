@@ -44,6 +44,9 @@ function humanizeSourceName(source: string): string {
   if (normalized === "discogs") {
     return "Discogs";
   }
+  if (normalized === "metals") {
+    return "Metals API";
+  }
 
   return source;
 }

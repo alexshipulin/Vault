@@ -46,7 +46,19 @@ describe("LegacyRemoteAnalysisService", () => {
         evidenceStrength: "weak",
         appliedValueCeiling: 100,
         sourceBreakdown: { ebay: 0, liveauctioneers: 1, heritage: 0 },
-      }
+      },
+      analysisLog: {
+        version: 1,
+        createdAt: "2026-04-01T00:00:00.000Z",
+        scanId: "remote-1",
+        appraisalMode: "standard",
+        categoryHint: "general",
+        detectedCategory: "coin",
+        itemName: "Rare Coin",
+        finalSource: "AI Estimate",
+        entries: [],
+        copyText: "VaultScope Analysis Log\nScan ID: remote-1",
+      },
     });
 
     const { LegacyRemoteAnalysisService } = require("@src/data/remote/LegacyRemoteServices") as typeof import("@src/data/remote/LegacyRemoteServices");
@@ -62,6 +74,7 @@ describe("LegacyRemoteAnalysisService", () => {
     expect(result.priceData?.valuationMode).toBe("mystery");
     expect(result.priceData?.appliedValueCeiling).toBe(100);
     expect(result.priceData?.sourceLabel).toContain("no market matches");
+    expect(result.analysisLog?.copyText).toContain("Scan ID: remote-1");
     expect(mockExecuteScan).toHaveBeenCalledWith(
       session.capturedImages.map((image) => image.uri),
       "general",

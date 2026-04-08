@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { AppConfig, hasRemoteConfig } from "@/constants/Config";
+import type { AnalysisLogDocument } from "@/lib/analysis/logs";
+import type { ScanProgressState } from "@/lib/scan/types";
 import type { AnalysisService, AppReadinessService, RemoteSearchService } from "@src/domain/contracts";
-import type { AppReadinessReport, CollectibleItem, PriceSource, ScanResult, TemporaryScanSession } from "@src/domain/models";
+import type { AppReadinessCheck, AppReadinessReport, CollectibleItem, PriceSource, ScanResult, TemporaryScanSession } from "@src/domain/models";
 
 function requireLegacyFirebaseAuth(): { ensureAnonymousSession: () => Promise<{ uid: string }> } {
   return require("@/lib/firebase/auth") as { ensureAnonymousSession: () => Promise<{ uid: string }> };
@@ -35,6 +37,34 @@ function requireLegacyFirestore(): {
   };
 }
 
+function requireLegacyFirestoreDebug(): {
+  getScanResult: (scanId: string) => Promise<unknown>;
+  saveFailedScanLog: (payload: {
+    id: string;
+    userId: string;
+    category: string;
+    images: string[];
+    analysisLog: AnalysisLogDocument;
+    scannedAt: string;
+    errorSummary: string;
+    failedStep: string;
+  }) => Promise<string>;
+} {
+  return require("@/lib/firebase/firestore") as {
+    getScanResult: (scanId: string) => Promise<unknown>;
+    saveFailedScanLog: (payload: {
+      id: string;
+      userId: string;
+      category: string;
+      images: string[];
+      analysisLog: AnalysisLogDocument;
+      scannedAt: string;
+      errorSummary: string;
+      failedStep: string;
+    }) => Promise<string>;
+  };
+}
+
 function requireLegacySearch(): { AntiqueSearchEngine: new () => { getTopDeals: (category?: string, limit?: number) => Promise<unknown[]> } } {
   return require("@/lib/firebase/search") as {
     AntiqueSearchEngine: new () => { getTopDeals: (category?: string, limit?: number) => Promise<unknown[]> };
@@ -42,7 +72,7 @@ function requireLegacySearch(): { AntiqueSearchEngine: new () => { getTopDeals: 
 }
 
 function requireLegacyScanPipeline(): {
-  ScanPipeline: new () => {
+  ScanPipeline: new (options?: { onProgress?: (progress: ScanProgressState) => void }) => {
     executeScan: (images: string[], category: string, appraisalMode?: "standard" | "mystery") => Promise<{
       id: string;
       images: string[];
@@ -80,12 +110,15 @@ function requireLegacyScanPipeline(): {
         likelyValueCeiling?: number | null;
         valuationConfidence?: number;
         descriptionTone?: "skeptical" | "neutral" | "collector";
+        pricingBasis?: string | null;
+        pricingConfidence?: number | null;
+        isBullion?: boolean | null;
       };
       priceEstimate: {
         low?: number | null;
         high?: number | null;
         currency: string;
-        source?: "database" | "aiFallback";
+        source?: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "metals";
         sourceLabel?: string | null;
         confidence?: number;
         valuationConfidence?: number;
@@ -98,6 +131,7 @@ function requireLegacyScanPipeline(): {
         needsReview?: boolean;
         valuationWarnings?: string[];
       };
+      analysisLog?: AnalysisLogDocument | null;
     }>;
   };
 } {
@@ -140,12 +174,15 @@ function requireLegacyScanPipeline(): {
           likelyValueCeiling?: number | null;
           valuationConfidence?: number;
           descriptionTone?: "skeptical" | "neutral" | "collector";
+          pricingBasis?: string | null;
+          pricingConfidence?: number | null;
+          isBullion?: boolean | null;
         };
         priceEstimate: {
           low?: number | null;
           high?: number | null;
           currency: string;
-          source?: "database" | "aiFallback";
+          source?: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "metals";
           sourceLabel?: string | null;
           confidence?: number;
           valuationConfidence?: number;
@@ -158,8 +195,59 @@ function requireLegacyScanPipeline(): {
           needsReview?: boolean;
           valuationWarnings?: string[];
         };
+        analysisLog?: AnalysisLogDocument | null;
       }>;
     };
+  };
+}
+
+function requireLegacyGeminiClient(): {
+  GeminiClient: new () => {
+    generateEmbedding: (text: string) => Promise<{ embedding: number[] }>;
+  };
+} {
+  return require("@/lib/gemini/client") as {
+    GeminiClient: new () => {
+      generateEmbedding: (text: string) => Promise<{ embedding: number[] }>;
+    };
+  };
+}
+
+function requireLegacyPricingClients(): {
+  pcgsClient: { lookupCoin: (params: { year: number; denomination: string; mintMark?: string }) => Promise<unknown> };
+  discogsClient: {
+    lookupVinyl: (identification: {
+      category: string;
+      name: string;
+      catalogNumber?: string | null;
+      year?: number | null;
+      historySummary: string;
+      searchKeywords: string[];
+      distinguishingFeatures: string[];
+    }) => Promise<unknown>;
+  };
+  metalsClient: { getSpotPrices: () => Promise<unknown> };
+} {
+  return {
+    ...(require("@/src/services/pricing/PCGSClient") as {
+      pcgsClient: { lookupCoin: (params: { year: number; denomination: string; mintMark?: string }) => Promise<unknown> };
+    }),
+    ...(require("@/src/services/pricing/DiscogsClient") as {
+      discogsClient: {
+        lookupVinyl: (identification: {
+          category: string;
+          name: string;
+          catalogNumber?: string | null;
+          year?: number | null;
+          historySummary: string;
+          searchKeywords: string[];
+          distinguishingFeatures: string[];
+        }) => Promise<unknown>;
+      };
+    }),
+    ...(require("@/src/services/pricing/MetalsClient") as {
+      metalsClient: { getSpotPrices: () => Promise<unknown> };
+    }),
   };
 }
 
@@ -182,8 +270,8 @@ function mapCondition(raw: string): number {
   }
 }
 
-function mapRemoteCategory(input: string): ScanResult["category"] {
-  const normalized = input.trim().toLowerCase();
+function mapRemoteCategory(input: string | null | undefined): ScanResult["category"] {
+  const normalized = input?.trim().toLowerCase() ?? "";
 
   if (normalized.includes("vinyl") || normalized.includes("record")) {
     return "vinyl";
@@ -213,10 +301,22 @@ function mapRemoteCategory(input: string): ScanResult["category"] {
 }
 
 function mapRemotePriceSource(
-  remoteSource: "database" | "aiFallback" | undefined,
+  remoteSource: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "metals" | undefined,
   comparableSource: string | null | undefined,
 ): PriceSource {
-  if (remoteSource === "aiFallback") {
+  if (remoteSource === "metals") {
+    return "metals";
+  }
+
+  if (remoteSource === "pcgs") {
+    return "pcgs";
+  }
+
+  if (remoteSource === "discogs") {
+    return "discogs";
+  }
+
+  if (remoteSource === "ai_estimate" || remoteSource === "aiFallback") {
     return "aiEstimate";
   }
 
@@ -239,12 +339,18 @@ export class LegacyRemoteAnalysisService implements AnalysisService {
     return hasRemoteConfig();
   }
 
-  async runAnalysis(session: TemporaryScanSession): Promise<ScanResult> {
+  async runAnalysis(
+    session: TemporaryScanSession,
+    onProgress?: (progress: ScanProgressState) => void,
+  ): Promise<ScanResult> {
     const { ScanPipeline } = requireLegacyScanPipeline();
-    const pipeline = new ScanPipeline() as LegacyScanPipelineInstance;
+    const pipeline = new ScanPipeline({
+      onProgress,
+    }) as LegacyScanPipelineInstance;
+    const categoryHint = "general";
     const remote = await pipeline.executeScan(
       session.capturedImages.map((image) => image.uri),
-      "general",
+      categoryHint,
       session.mode,
     );
     const low = remote.priceEstimate.low ?? null;
@@ -259,7 +365,7 @@ export class LegacyRemoteAnalysisService implements AnalysisService {
     const valuationWarnings = remote.priceEstimate.valuationWarnings ?? [];
     const sourceLabelBase =
       remote.priceEstimate.sourceLabel ??
-      (remote.priceEstimate.source === "aiFallback"
+      (remote.priceEstimate.source === "ai_estimate" || remote.priceEstimate.source === "aiFallback"
         ? "AI approximation used because no reliable market matches were found."
         : "Mapped from legacy Gemini + auction search pipeline");
     const sourceLabel = [
@@ -311,7 +417,8 @@ export class LegacyRemoteAnalysisService implements AnalysisService {
         : null,
       rawAIResponse: JSON.stringify(remote.identification),
       scannedAt: remote.scannedAt,
-      inputImageHashes: remote.images
+      inputImageHashes: remote.images,
+      analysisLog: remote.analysisLog ?? null,
     };
   }
 }
@@ -381,34 +488,205 @@ export class LegacyReadinessService implements AppReadinessService {
   async check(): Promise<AppReadinessReport> {
     const firebaseConfigured = hasRemoteConfig();
     const projectReady = firebaseConfigured && AppConfig.firebase.projectId !== "your-firebase-project-id";
-    const searchIndexReady = await this.searchService.isDataReady().catch(() => false);
-    const remoteAnalysisReady = await this.analysisService.isConfigured().catch(() => false);
-    const remoteConfiguredButUnverified = firebaseConfigured && (!searchIndexReady || !remoteAnalysisReady);
+    const checks: AppReadinessCheck[] = [];
+    const verifiedAt = new Date().toISOString();
+
+    const addCheck = (
+      key: AppReadinessCheck["key"],
+      label: AppReadinessCheck["label"],
+      status: AppReadinessCheck["status"],
+      message: string,
+    ) => {
+      checks.push({ key, label, status, message });
+    };
+
+    const formatError = (error: unknown) =>
+      error instanceof Error && error.message ? error.message : "Unknown error";
+
+    if (!firebaseConfigured) {
+      addCheck("firebase", "Firebase config", "missing", "Firebase environment variables are missing.");
+    } else if (!projectReady) {
+      addCheck("firebase", "Firebase config", "configured", "Firebase env is present, but the project binding is still placeholder or not verified.");
+    } else {
+      addCheck("firebase", "Firebase config", "verified", "Firebase config is present for the bound project.");
+    }
+
+    const searchIndexReady =
+      firebaseConfigured && projectReady ? await this.searchService.isDataReady().catch(() => false) : false;
+    addCheck(
+      "firestore",
+      "Firestore comparables",
+      !firebaseConfigured
+        ? "missing"
+        : searchIndexReady
+          ? "verified"
+          : "failed",
+      !firebaseConfigured
+        ? "Firestore search cannot run until Firebase is configured."
+        : searchIndexReady
+          ? "Marketplace comparable lookup returned results."
+          : "Marketplace comparable lookup did not return a verified live result.",
+    );
+
+    const geminiConfigured = Boolean(AppConfig.geminiApiKey);
+    let geminiVerified = false;
+    if (!geminiConfigured) {
+      addCheck("gemini", "Gemini AI", "missing", "Gemini API key is missing.");
+    } else {
+      try {
+        const { GeminiClient } = requireLegacyGeminiClient();
+        const client = new GeminiClient();
+        const response = await client.generateEmbedding("vaultscope readiness probe");
+        geminiVerified = Array.isArray(response.embedding) && response.embedding.length > 0;
+        addCheck(
+          "gemini",
+          "Gemini AI",
+          geminiVerified ? "verified" : "failed",
+          geminiVerified ? "Gemini live probe succeeded." : "Gemini probe returned an empty embedding.",
+        );
+      } catch (error) {
+        addCheck("gemini", "Gemini AI", "failed", `Gemini live probe failed: ${formatError(error)}`);
+      }
+    }
+
+    const { pcgsClient, discogsClient, metalsClient } = requireLegacyPricingClients();
+
+    if (!AppConfig.pcgs.username || !AppConfig.pcgs.password) {
+      addCheck("pcgs", "PCGS", "missing", "PCGS credentials are missing.");
+    } else {
+      try {
+        const pcgsProbe = await pcgsClient.lookupCoin({
+          year: 1921,
+          denomination: "Morgan Dollar",
+          mintMark: "S",
+        });
+        addCheck(
+          "pcgs",
+          "PCGS",
+          pcgsProbe ? "verified" : "failed",
+          pcgsProbe
+            ? "PCGS returned a live sample coin match."
+            : "PCGS is configured, but the current live endpoint did not return a sample coin match.",
+        );
+      } catch (error) {
+        addCheck("pcgs", "PCGS", "failed", `PCGS live probe failed: ${formatError(error)}`);
+      }
+    }
+
+    if (!AppConfig.discogsToken) {
+      addCheck("discogs", "Discogs", "missing", "Discogs token is missing.");
+    } else {
+      try {
+        const discogsProbe = await discogsClient.lookupVinyl({
+          category: "vinyl",
+          name: "Miles Davis - Kind of Blue",
+          catalogNumber: "CL 1355",
+          year: 1959,
+          historySummary: "Readiness probe",
+          searchKeywords: ["miles", "davis", "kind", "blue", "cl", "1355"],
+          distinguishingFeatures: [],
+        });
+        addCheck(
+          "discogs",
+          "Discogs",
+          discogsProbe ? "verified" : "failed",
+          discogsProbe
+            ? "Discogs returned a live vinyl pricing match."
+            : "Discogs is configured, but no verified pricing match was returned for the live probe.",
+        );
+      } catch (error) {
+        addCheck("discogs", "Discogs", "failed", `Discogs live probe failed: ${formatError(error)}`);
+      }
+    }
+
+    if (!AppConfig.metalsApiKey) {
+      addCheck("metals", "Metals API", "missing", "Metals API key is missing.");
+    } else {
+      try {
+        const metalsProbe = await metalsClient.getSpotPrices();
+        addCheck(
+          "metals",
+          "Metals API",
+          metalsProbe ? "verified" : "failed",
+          metalsProbe
+            ? "Metals API returned current spot prices."
+            : "Metals API is configured, but no spot prices were returned.",
+        );
+      } catch (error) {
+        addCheck("metals", "Metals API", "failed", `Metals live probe failed: ${formatError(error)}`);
+      }
+    }
+
+    if (!firebaseConfigured || !projectReady) {
+      addCheck(
+        "persistence",
+        "Firebase save/logs",
+        "missing",
+        "Firebase auth and scan-result persistence cannot be checked until Firebase is configured.",
+      );
+    } else {
+      try {
+        const { ensureAnonymousSession } = requireLegacyFirebaseAuth();
+        const { getScanResult, saveFailedScanLog } = requireLegacyFirestoreDebug();
+        const user = await ensureAnonymousSession();
+        const probeId = `probe-${Date.now()}`;
+        const scannedAt = new Date().toISOString();
+        const analysisLog: AnalysisLogDocument = {
+          version: 1,
+          createdAt: scannedAt,
+          scanId: probeId,
+          appraisalMode: "standard",
+          categoryHint: "general",
+          detectedCategory: null,
+          itemName: "Readiness probe",
+          finalSource: null,
+          entries: [
+            {
+              at: scannedAt,
+              elapsedMs: 0,
+              kind: "save",
+              title: "Readiness probe",
+              message: "Verified Firebase auth, save, and readback paths.",
+            },
+          ],
+          copyText: "VaultScope readiness probe",
+        };
+        await saveFailedScanLog({
+          id: probeId,
+          userId: user.uid,
+          category: "general",
+          images: [],
+          analysisLog,
+          scannedAt,
+          errorSummary: "Readiness probe",
+          failedStep: "saving",
+        });
+        const persistedProbe = await getScanResult(probeId);
+        addCheck(
+          "persistence",
+          "Firebase save/logs",
+          persistedProbe ? "verified" : "failed",
+          persistedProbe
+            ? "Anonymous auth, scan-result save, and log readback all succeeded."
+            : "Firebase save succeeded, but readback could not be verified.",
+        );
+      } catch (error) {
+        addCheck("persistence", "Firebase save/logs", "failed", `Firebase auth/save probe failed: ${formatError(error)}`);
+      }
+    }
+
+    const remoteAnalysisReady = geminiVerified && searchIndexReady;
 
     return {
       firebaseConfigured,
       firebaseProjectReady: projectReady,
       functionsConfigured: projectReady,
       searchIndexReady,
-      geminiConfigured: Boolean(AppConfig.geminiApiKey),
+      geminiConfigured,
       remoteAnalysisReady,
-      messages: [
-        firebaseConfigured
-          ? projectReady
-            ? "Firebase config detected"
-            : "Firebase env detected, but the project binding is still placeholder or not verified"
-          : "Firebase config missing",
-        searchIndexReady
-          ? "Auction search returned results"
-          : remoteConfiguredButUnverified
-            ? "Auction search is configured but not verified"
-            : "Auction search could not be verified",
-        remoteAnalysisReady
-          ? searchIndexReady
-            ? "Remote analysis service configured"
-            : "Remote analysis service is configured but not verified"
-          : "Remote analysis service not ready"
-      ]
+      verifiedAt,
+      checks,
+      messages: checks.map((check) => `${check.label}: ${check.message}`),
     };
   }
 }

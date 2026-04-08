@@ -35,6 +35,13 @@ export interface ResultPresentationTestIDs {
   diagnostics?: string;
   summary?: string;
   disclaimer?: string;
+  footerSecondaryAction?: string;
+}
+
+export interface ResultPresentationFooterAction {
+  title: string;
+  onPress: () => void;
+  testID?: string;
 }
 
 function ResultMetaItem({
@@ -87,6 +94,7 @@ export function ResultPresentationScreen({
   onBack,
   onHeaderShare,
   actions,
+  footerSecondaryAction,
   testIDs,
   emptyStateText = "Item unavailable.",
 }: {
@@ -95,6 +103,7 @@ export function ResultPresentationScreen({
   onBack: () => void;
   onHeaderShare?: () => void;
   actions: ResultPresentationAction[];
+  footerSecondaryAction?: ResultPresentationFooterAction;
   testIDs?: ResultPresentationTestIDs;
   emptyStateText?: string;
 }) {
@@ -245,6 +254,15 @@ export function ResultPresentationScreen({
             <Text style={styles.disclaimer} testID={testIDs?.disclaimer}>
               {model.disclaimerText}
             </Text>
+            {footerSecondaryAction ? (
+              <Pressable
+                onPress={footerSecondaryAction.onPress}
+                style={({ pressed }) => [styles.footerSecondaryAction, pressed && styles.footerSecondaryActionPressed]}
+                testID={footerSecondaryAction.testID ?? testIDs?.footerSecondaryAction}
+              >
+                <Text style={styles.footerSecondaryActionText}>{footerSecondaryAction.title}</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       </View>
@@ -490,13 +508,28 @@ const styles = StyleSheet.create({
   disclaimerWrap: {
     paddingTop: 16,
     paddingHorizontal: spacing.lg,
-    paddingBottom: 0,
+    paddingBottom: 8,
   },
   disclaimer: {
     color: "#2A2A2A",
     fontSize: 10,
     fontWeight: "400",
     lineHeight: 16,
+  },
+  footerSecondaryAction: {
+    alignSelf: "center",
+    marginTop: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  footerSecondaryActionPressed: {
+    opacity: 0.6,
+  },
+  footerSecondaryActionText: {
+    color: "#3F3F3F",
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 1.6,
   },
   footer: {
     backgroundColor: colors.background,

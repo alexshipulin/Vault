@@ -1592,6 +1592,7 @@
           "id": "UijPy",
           "name": "Scroll Content",
           "width": "fill_container",
+          "height": 510,
           "layout": "vertical",
           "children": [
             {
@@ -1948,10 +1949,19 @@
             },
             {
               "type": "frame",
+              "id": "QeIwG",
+              "name": "rDiv5",
+              "width": "fill_container",
+              "height": 1,
+              "fill": "#1A1A1A"
+            },
+            {
+              "type": "frame",
               "id": "DZEB7",
               "name": "rActionsBlock",
               "width": "fill_container",
               "height": 52,
+              "alignItems": "end",
               "children": [
                 {
                   "type": "frame",
@@ -2085,37 +2095,15 @@
             },
             {
               "type": "frame",
-              "id": "QeIwG",
-              "name": "rDiv5",
-              "width": "fill_container",
-              "height": 1,
-              "fill": "#1A1A1A"
-            },
-            {
-              "type": "frame",
               "id": "Bgo3K",
               "name": "rDisclaimer",
               "width": "fill_container",
+              "height": "fit_content(80)",
               "padding": [
                 16,
                 24,
                 32,
                 24
-              ],
-              "children": [
-                {
-                  "type": "text",
-                  "id": "0SNbQ",
-                  "name": "rDisclaimerText",
-                  "fill": "#2A2A2A",
-                  "textGrowth": "fixed-width",
-                  "width": 342,
-                  "content": "This is an AI estimate, not a professional appraisal. Values may vary based on condition, provenance, and market conditions.",
-                  "lineHeight": 1.6,
-                  "fontFamily": "Inter",
-                  "fontSize": 10,
-                  "fontWeight": "normal"
-                }
               ]
             }
           ]

@@ -1,14 +1,15 @@
+import { attachScanIdToAnalysisLog, createAnalysisLogBuilder } from "@/lib/analysis/logs";
 import { ensureAnonymousSession } from "@/lib/firebase/auth";
 import { getVaultScopeAuth } from "@/lib/firebase/config";
-import { saveScanResult } from "@/lib/firebase/firestore";
+import { saveFailedScanLog, saveScanResult } from "@/lib/firebase/firestore";
 import { AntiqueSearchEngine } from "@/lib/firebase/search";
 import { uploadScanImage } from "@/lib/firebase/storage";
 import type { AntiqueAuction } from "@/lib/firebase/types";
-import { extractSearchKeywords } from "@/lib/firebase/utils";
+import { buildEnhancedSearchQuery, extractSearchKeywords } from "@/lib/firebase/utils";
 import { GeminiClient, GeminiInvalidJsonError } from "@/lib/gemini/client";
 import type { GeminiIdentifyResponse, GeminiMarketTier } from "@/lib/gemini/types";
 import { performanceMonitor } from "@/lib/performance/monitoring";
-import type { ScanProgressState, ScanResult, VisionResult } from "@/lib/scan/types";
+import type { ScanLookupProgress, ScanProgressState, ScanResult, VisionResult } from "@/lib/scan/types";
 import { ScanPipelineError } from "@/lib/scan/types";
 import type {
   AppraisalMode,
@@ -17,6 +18,8 @@ import type {
   ValuationEvidenceStrength,
 } from "@/lib/types";
 import { VisionProcessor } from "@/lib/vision/processor";
+import { getPricingForItem } from "@src/services/pricing/priceRouter";
+import { t } from "@src/shared/i18n/strings";
 
 const STEP_LABELS: Record<ScanProgressState["step"], string> = {
   processing: "Processing image...",
@@ -64,6 +67,49 @@ const MYSTERY_DEFAULT_CEILINGS: Record<GeminiMarketTier, number> = {
   secondary: 150,
   collector: 250,
   premium_antique: 250,
+};
+
+const LOOKUP_PROGRESS: Record<ScanLookupProgress["sourceKey"], { sourceLabel: string; message: string }> = {
+  image_preparation: {
+    sourceLabel: "Image preparation",
+    message: t("processing.detail.image_preparation"),
+  },
+  gemini: {
+    sourceLabel: "Gemini AI",
+    message: t("processing.detail.gemini"),
+  },
+  condition: {
+    sourceLabel: "Condition review",
+    message: t("processing.detail.condition"),
+  },
+  marketplace: {
+    sourceLabel: "Marketplace sales",
+    message: t("processing.detail.marketplace"),
+  },
+  auction_records: {
+    sourceLabel: "Auction records",
+    message: t("processing.detail.auction_records"),
+  },
+  pcgs: {
+    sourceLabel: "PCGS Price Guide",
+    message: t("processing.detail.pcgs"),
+  },
+  discogs: {
+    sourceLabel: "Discogs Marketplace",
+    message: t("processing.detail.discogs"),
+  },
+  metals: {
+    sourceLabel: "Metals API",
+    message: t("processing.detail.metals"),
+  },
+  final_estimate: {
+    sourceLabel: "Final estimate",
+    message: t("processing.detail.final_estimate"),
+  },
+  saving: {
+    sourceLabel: "Result storage",
+    message: t("processing.detail.saving"),
+  },
 };
 
 type ScanPipelineOptions = {
@@ -169,26 +215,81 @@ function deriveSearchCategory(
   return undefined;
 }
 
-function buildSearchQuery(
+function buildComparableQueryKeywords(
   identification: GeminiIdentifyResponse,
   visionResults: VisionResult[],
-): string {
-  const barcodeTerms = visionResults.flatMap((result) => result.barcodes.map((barcode) => barcode.data));
-  const combinedKeywords = [
-    identification.name,
-    identification.objectType,
-    identification.material,
-    identification.makerOrBrand,
-    identification.origin,
-    ...identification.searchKeywords,
-    ...(identification.distinguishingFeatures ?? []).slice(0, 6),
-    ...barcodeTerms,
-  ]
-    .filter((value): value is string => typeof value === "string")
-    .map((value) => value.trim())
-    .filter(Boolean);
+): string[] {
+  const keywords = buildEnhancedSearchQuery(identification);
+  const barcodeTerms = visionResults.flatMap((result) =>
+    result.barcodes.flatMap((barcode) => extractSearchKeywords(barcode.data)),
+  );
 
-  return combinedKeywords.join(" ");
+  return Array.from(new Set([...keywords, ...barcodeTerms])).slice(0, 10);
+}
+
+function resolveIdentificationCategory(identification: GeminiIdentifyResponse): string {
+  const normalized = identification.category?.trim().toLowerCase();
+  return normalized && normalized.length > 0 ? normalized : "general";
+}
+
+function buildLookupProgress(
+  sourceKey: ScanLookupProgress["sourceKey"],
+  message?: string,
+): ScanLookupProgress {
+  const defaults = LOOKUP_PROGRESS[sourceKey];
+  return {
+    sourceKey,
+    sourceLabel: defaults.sourceLabel,
+    message: message?.trim() || defaults.message,
+  };
+}
+
+function createScanResultID(): string {
+  return `scan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function appendUniqueWarning(
+  warnings: string[] | undefined,
+  warning: string | null | undefined,
+): string[] | undefined {
+  const normalizedWarning = warning?.trim();
+  if (!normalizedWarning) {
+    return warnings;
+  }
+
+  const nextWarnings = [...(warnings ?? [])];
+  if (!nextWarnings.includes(normalizedWarning)) {
+    nextWarnings.push(normalizedWarning);
+  }
+
+  return nextWarnings;
+}
+
+function scoreComparableRelevance(
+  comparable: Pick<AntiqueAuction, "keywords" | "saleDate" | "category">,
+  queryKeywords: string[],
+  itemCategory: string,
+): number {
+  if (!comparable.keywords?.length) {
+    return 0;
+  }
+
+  const normalizedComparableKeywords = comparable.keywords.map((keyword) => keyword.toLowerCase());
+  const matched = normalizedComparableKeywords.filter((keyword) => queryKeywords.includes(keyword)).length;
+  const keywordScore = matched / Math.max(queryKeywords.length, 1);
+  const categoryBonus =
+    itemCategory !== "general" && comparable.category === itemCategory ? 0.25 : 0;
+
+  let recencyScore = 0.1;
+  if (comparable.saleDate) {
+    const saleDate = Date.parse(comparable.saleDate);
+    if (Number.isFinite(saleDate)) {
+      const ageMonths = (Date.now() - saleDate) / (1000 * 60 * 60 * 24 * 30);
+      recencyScore = ageMonths < 6 ? 0.25 : ageMonths < 12 ? 0.15 : ageMonths < 24 ? 0.1 : 0.05;
+    }
+  }
+
+  return keywordScore * 0.5 + categoryBonus + recencyScore;
 }
 
 function rankComparableAuctions(
@@ -197,6 +298,7 @@ function rankComparableAuctions(
   requestedCategory: string,
   appraisalMode: AppraisalMode,
 ): RankedComparable[] {
+  const queryKeywords = buildEnhancedSearchQuery(identification);
   const identificationTokens = buildTokenSet([
     identification.name,
     identification.objectType,
@@ -207,7 +309,8 @@ function rankComparableAuctions(
     ...(identification.distinguishingFeatures ?? []).slice(0, 8),
   ]);
   const normalizedName = identification.name.trim().toLowerCase();
-  const requestedSearchCategory = deriveSearchCategory(identification, requestedCategory);
+  const requestedSearchCategory =
+    deriveSearchCategory(identification, requestedCategory) ?? resolveIdentificationCategory(identification);
   const normalizedOrigin = identification.origin?.trim().toLowerCase() ?? "";
   const normalizedMaterial = identification.material?.trim().toLowerCase() ?? "";
   const normalizedObjectType = identification.objectType?.trim().toLowerCase() ?? "";
@@ -224,26 +327,22 @@ function rankComparableAuctions(
         ...(item.keywords ?? []),
       ]);
       const matchedTokens = Array.from(identificationTokens).filter((token) => candidateTokens.has(token));
-      const overlapRatio = identificationTokens.size > 0 ? matchedTokens.length / identificationTokens.size : 0;
       const normalizedTitle = item.title.trim().toLowerCase();
       const normalizedDescription = item.description.trim().toLowerCase();
 
-      let score = overlapRatio * 0.7;
+      let score = scoreComparableRelevance(item, queryKeywords, requestedSearchCategory);
 
       if (normalizedName && normalizedTitle.includes(normalizedName)) {
-        score += 0.2;
-      }
-      if (normalizedObjectType && `${normalizedTitle} ${normalizedDescription}`.includes(normalizedObjectType)) {
-        score += 0.1;
-      }
-      if (normalizedMaterial && `${normalizedTitle} ${normalizedDescription}`.includes(normalizedMaterial)) {
-        score += 0.1;
-      }
-      if (normalizedOrigin && (item.originCountry ?? "").trim().toLowerCase().includes(normalizedOrigin)) {
         score += 0.08;
       }
-      if (requestedSearchCategory && item.category === requestedSearchCategory) {
-        score += 0.1;
+      if (normalizedObjectType && `${normalizedTitle} ${normalizedDescription}`.includes(normalizedObjectType)) {
+        score += 0.06;
+      }
+      if (normalizedMaterial && `${normalizedTitle} ${normalizedDescription}`.includes(normalizedMaterial)) {
+        score += 0.06;
+      }
+      if (normalizedOrigin && (item.originCountry ?? "").trim().toLowerCase().includes(normalizedOrigin)) {
+        score += 0.04;
       }
       if (
         requestedSearchCategory &&
@@ -251,7 +350,7 @@ function rankComparableAuctions(
         item.category !== "general" &&
         item.category !== requestedSearchCategory
       ) {
-        score -= 0.12;
+        score -= 0.08;
       }
 
       if (appraisalMode === "mystery") {
@@ -282,7 +381,7 @@ function rankComparableAuctions(
       };
     })
     .filter((candidate) => candidate.price != null)
-    .filter((candidate) => candidate.score >= 0.18 || candidate.matchedTokens.length >= 2)
+    .filter((candidate) => candidate.score >= 0.3)
     .sort((left, right) => {
       if (right.score !== left.score) {
         return right.score - left.score;
@@ -359,6 +458,18 @@ function hasMeaningfulOcrEvidence(ocrText: string): boolean {
 
 function hasNumericEstimate(estimate: Pick<PriceEstimate, "low" | "high"> | null | undefined): boolean {
   return typeof estimate?.low === "number" || typeof estimate?.high === "number";
+}
+
+function getEstimateConfidence(
+  estimate: Pick<PriceEstimate, "confidence" | "valuationConfidence"> | null | undefined,
+): number {
+  if (!estimate) {
+    return 0;
+  }
+
+  return typeof estimate.valuationConfidence === "number"
+    ? estimate.valuationConfidence
+    : estimate.confidence;
 }
 
 function normalizeEstimateRange(low: number | null, high: number | null): { low: number | null; high: number | null } {
@@ -549,15 +660,54 @@ function clampEstimateToCeiling(estimate: PriceEstimate | null, ceiling: number 
   };
 }
 
+function tightenMysteryFallbackEstimate(
+  estimate: PriceEstimate | null,
+  assessment: ValuationAssessment,
+): PriceEstimate | null {
+  if (!estimate || !hasNumericEstimate(estimate)) {
+    return estimate;
+  }
+
+  const normalized = normalizeEstimateRange(estimate.low, estimate.high);
+  const low = normalized.low ?? normalized.high;
+  const high = normalized.high ?? normalized.low;
+
+  if (low == null || high == null || high <= low || high > 150 || assessment.evidenceStrength === "strong") {
+    return estimate;
+  }
+
+  const ratioCap = high <= 60 ? 1.5 : high <= 100 ? 1.75 : 2;
+  const spreadCap = high <= 40 ? 10 : high <= 60 ? 12 : high <= 100 ? 15 : 22;
+  const tightenedHigh = Math.min(
+    high,
+    Math.round(low * ratioCap),
+    low + spreadCap,
+  );
+
+  if (tightenedHigh <= low) {
+    return {
+      ...estimate,
+      low,
+      high: low,
+    };
+  }
+
+  return {
+    ...estimate,
+    low,
+    high: tightenedHigh,
+  };
+}
+
 function buildMysterySourceLabel(
-  source: "database" | "aiFallback",
+  source: "database" | "ai_estimate",
   assessment: ValuationAssessment,
   ceiling: number,
 ): string {
   const sourceSummary =
     assessment.matchedSources.length > 0 ? assessment.matchedSources.join(", ") : "market databases";
   const prefix =
-    source === "aiFallback"
+    source === "ai_estimate"
       ? "AI-led conservative estimate cross-checked against market databases."
       : "Database-supported estimate filtered for mystery mode.";
 
@@ -578,7 +728,7 @@ function mergeMysteryEstimates(
     return aiEstimate
       ? {
           ...aiEstimate,
-          sourceLabel: buildMysterySourceLabel("aiFallback", assessment, ceiling),
+          sourceLabel: buildMysterySourceLabel("ai_estimate", assessment, ceiling),
         }
       : null;
   }
@@ -610,8 +760,8 @@ function mergeMysteryEstimates(
     high,
     confidence: valuationConfidence,
     valuationConfidence,
-    source: "aiFallback",
-    sourceLabel: buildMysterySourceLabel("aiFallback", assessment, ceiling),
+    source: "ai_estimate",
+    sourceLabel: buildMysterySourceLabel("ai_estimate", assessment, ceiling),
   };
 }
 
@@ -744,10 +894,25 @@ function derivePriceEstimate(
   assessment: ValuationAssessment,
   appraisalMode: AppraisalMode,
 ): PriceEstimate {
-  const prices = results
-    .map((result) => result.price)
-    .filter((price): price is number => typeof price === "number" && Number.isFinite(price))
-    .sort((left, right) => left - right);
+  let filteredResults = results.filter(
+    (result): result is RankedComparable & { price: number } =>
+      typeof result.price === "number" && Number.isFinite(result.price),
+  );
+  let prices = filteredResults.map((result) => result.price).sort((left, right) => left - right);
+
+  if (prices.length >= 4) {
+    const q1 = prices[Math.floor(prices.length * 0.25)] ?? prices[0];
+    const q3 = prices[Math.floor(prices.length * 0.75)] ?? prices[prices.length - 1];
+    const iqr = q3 - q1;
+    const nextFilteredResults = filteredResults.filter(
+      (result) => result.price >= q1 - 1.5 * iqr && result.price <= q3 + 1.5 * iqr,
+    );
+
+    if (nextFilteredResults.length >= 2) {
+      filteredResults = nextFilteredResults;
+      prices = filteredResults.map((result) => result.price).sort((left, right) => left - right);
+    }
+  }
 
   if (prices.length === 0) {
     return {
@@ -768,34 +933,19 @@ function derivePriceEstimate(
 
   const low = quantile(prices, prices.length <= 2 ? 0 : 0.25) ?? prices[0];
   const high = quantile(prices, prices.length <= 2 ? 1 : 0.75) ?? prices[prices.length - 1];
-  const spreadRatio = low > 0 ? high / low : 999;
-  const sourceCount = assessment.matchedSources.length;
-  const rawConfidence =
-    appraisalMode === "mystery"
-      ? 0.18 +
-        Math.min(prices.length, 6) * 0.04 +
-        Math.min(sourceCount, 2) * 0.05 +
-        (assessment.practicalSourceCount > 0 ? 0.08 : 0) +
-        (assessment.evidenceStrength === "strong"
-          ? 0.1
-          : assessment.evidenceStrength === "moderate"
-            ? 0.04
-            : 0) -
-        (spreadRatio > 5 ? 0.2 : spreadRatio > 3 ? 0.1 : 0) -
-        (assessment.needsReview ? 0.1 : 0)
-      : 0.3 +
-        Math.min(prices.length, 8) * 0.05 +
-        Math.min(sourceCount, 3) * 0.06 -
-        (spreadRatio > 5 ? 0.22 : spreadRatio > 3 ? 0.12 : 0) -
-        (assessment.needsReview ? 0.12 : 0);
+  const relevanceScores = filteredResults.map((result) => result.score);
+  const avgRelevance =
+    relevanceScores.length > 0
+      ? relevanceScores.reduce((sum, score) => sum + score, 0) / relevanceScores.length
+      : 0;
+  const countFactor = Math.min(filteredResults.length / 8, 1) * 0.4;
+  const relevanceFactor = avgRelevance * 0.4;
+  const freshness = 0.2;
   const sourceSummary =
     assessment.matchedSources.length > 0
       ? assessment.matchedSources.join(", ")
       : "market database";
-  const confidence =
-    appraisalMode === "mystery"
-      ? Math.max(0.12, Math.min(0.72, rawConfidence))
-      : Math.max(0.2, Math.min(0.88, rawConfidence));
+  const confidence = Math.min(0.92, countFactor + relevanceFactor + freshness);
 
   return {
     low: Math.round(low),
@@ -806,7 +956,7 @@ function derivePriceEstimate(
     source: "database",
     sourceLabel: `Based on ${prices.length} comparable sale${prices.length === 1 ? "" : "s"} from ${sourceSummary}.${assessment.warnings.length ? ` Checks: ${assessment.warnings.join(" ")}` : ""}`,
     matchedSources: assessment.matchedSources,
-    comparableCount: prices.length,
+    comparableCount: filteredResults.length,
     needsReview: assessment.needsReview,
     valuationWarnings: assessment.warnings,
     valuationMode: appraisalMode,
@@ -822,28 +972,34 @@ function deriveGeminiFallbackPriceEstimate(
 ): PriceEstimate | null {
   const low = identification.estimatedValueLow ?? null;
   const high = identification.estimatedValueHigh ?? null;
+  const pricingConfidence =
+    identification.pricingConfidence ?? identification.valuationConfidence ?? identification.confidence;
 
   if ((low == null && high == null) || assessment.suppressAiFallback) {
     return null;
   }
 
-  return {
+  const fallbackEstimate: PriceEstimate = {
     low: low ?? high,
     high: high ?? low,
     currency: identification.estimatedValueCurrency ?? "USD",
     confidence:
       appraisalMode === "mystery"
-        ? Math.min(0.42, Math.max(0.12, (identification.valuationConfidence ?? identification.confidence) * 0.75))
-        : Math.min(0.45, Math.max(0.15, identification.confidence * 0.45)),
+        ? Math.min(0.42, Math.max(0.12, pricingConfidence * 0.75))
+        : Math.min(0.6, Math.max(0.15, pricingConfidence)),
     valuationConfidence:
       appraisalMode === "mystery"
-        ? Math.min(0.42, Math.max(0.12, (identification.valuationConfidence ?? identification.confidence) * 0.75))
-        : Math.min(0.45, Math.max(0.15, identification.confidence * 0.45)),
-    source: "aiFallback",
+        ? Math.min(0.42, Math.max(0.12, pricingConfidence * 0.75))
+        : Math.min(0.6, Math.max(0.15, pricingConfidence)),
+    source: "ai_estimate",
     sourceLabel: `${
       appraisalMode === "mystery"
-        ? identification.estimatedValueRationale ?? "AI-led conservative estimate for a likely flea-market item."
-        : identification.estimatedValueRationale ?? "AI approximation used because no reliable market matches were found."
+        ? identification.pricingBasis ??
+          identification.estimatedValueRationale ??
+          "AI-led conservative estimate for a likely flea-market item."
+        : identification.pricingBasis ??
+          identification.estimatedValueRationale ??
+          "AI approximation used because no reliable market matches were found."
     }${assessment.warnings.length ? ` Checks: ${assessment.warnings.join(" ")}` : ""}`,
     matchedSources: assessment.matchedSources,
     comparableCount: 0,
@@ -853,6 +1009,10 @@ function deriveGeminiFallbackPriceEstimate(
     evidenceStrength: assessment.evidenceStrength,
     sourceBreakdown: assessment.sourceBreakdown,
   };
+
+  return appraisalMode === "mystery"
+    ? tightenMysteryFallbackEstimate(fallbackEstimate, assessment)
+    : fallbackEstimate;
 }
 
 function buildSuppressedDatabaseEstimate(
@@ -912,8 +1072,8 @@ function finalizeMysteryPriceEstimate(
     if (!hasDatabaseEstimate || assessment.evidenceStrength === "weak" || assessment.premiumOnly) {
       return {
         ...aiClamped!,
-        source: "aiFallback",
-        sourceLabel: buildMysterySourceLabel("aiFallback", assessment, ceiling),
+        source: "ai_estimate",
+        sourceLabel: buildMysterySourceLabel("ai_estimate", assessment, ceiling),
         appliedValueCeiling: ceiling,
       };
     }
@@ -935,6 +1095,104 @@ function finalizeMysteryPriceEstimate(
   };
 }
 
+function selectStandardPriceEstimate(
+  databasePriceEstimate: PriceEstimate,
+  aiPriceEstimate: PriceEstimate | null,
+  comparableCount: number,
+): PriceEstimate {
+  const comparableConfidence = getEstimateConfidence(databasePriceEstimate);
+  const hasDatabaseEstimate = hasNumericEstimate(databasePriceEstimate);
+  const hasAiEstimate = hasNumericEstimate(aiPriceEstimate);
+
+  if ((comparableCount === 0 || comparableConfidence < 0.4) && hasAiEstimate) {
+    return aiPriceEstimate!;
+  }
+
+  if (hasDatabaseEstimate && hasAiEstimate) {
+    return comparableConfidence >= 0.5 ? databasePriceEstimate : aiPriceEstimate!;
+  }
+
+  if (hasDatabaseEstimate) {
+    return databasePriceEstimate;
+  }
+
+  return aiPriceEstimate ?? databasePriceEstimate;
+}
+
+function buildRoutedStandardPriceEstimate(
+  routedPriceResult: {
+    low: number | null;
+    high: number | null;
+    source: "pcgs" | "discogs" | "metals" | "firestore" | "ai_estimate";
+    sourceLabel: string;
+    confidenceLevel: "high" | "medium" | "low";
+  },
+  identification: GeminiIdentifyResponse,
+  databasePriceEstimate: PriceEstimate,
+  aiPriceEstimate: PriceEstimate | null,
+  valuationAssessment: ValuationAssessment,
+): PriceEstimate {
+  const sourceConfidenceMap: Record<"high" | "medium" | "low", number> = {
+    high: 0.85,
+    medium: 0.6,
+    low: 0.35,
+  };
+  const referenceEstimate =
+    routedPriceResult.source === "firestore"
+      ? databasePriceEstimate
+      : routedPriceResult.source === "ai_estimate"
+        ? aiPriceEstimate ?? databasePriceEstimate
+        : undefined;
+  const low =
+    routedPriceResult.low == null && routedPriceResult.high != null
+      ? routedPriceResult.high
+      : routedPriceResult.low;
+  const high =
+    routedPriceResult.high == null && routedPriceResult.low != null
+      ? routedPriceResult.low
+      : routedPriceResult.high;
+  const valuationConfidence =
+    routedPriceResult.source === "firestore"
+      ? getEstimateConfidence(databasePriceEstimate)
+      : routedPriceResult.source === "ai_estimate"
+        ? getEstimateConfidence(aiPriceEstimate) ||
+          identification.pricingConfidence ||
+          identification.valuationConfidence ||
+          identification.confidence
+        : sourceConfidenceMap[routedPriceResult.confidenceLevel];
+  const source =
+    routedPriceResult.source === "firestore"
+      ? "database"
+      : routedPriceResult.source === "pcgs"
+        ? "pcgs"
+        : routedPriceResult.source === "discogs"
+          ? "discogs"
+          : routedPriceResult.source === "metals"
+            ? "metals"
+          : "ai_estimate";
+
+  return {
+    low,
+    high,
+    currency: identification.estimatedValueCurrency ?? referenceEstimate?.currency ?? "USD",
+    confidence: valuationConfidence,
+    valuationConfidence,
+    source,
+    sourceLabel: routedPriceResult.sourceLabel,
+    matchedSources: referenceEstimate?.matchedSources ?? valuationAssessment.matchedSources,
+    comparableCount: referenceEstimate?.comparableCount ?? valuationAssessment.comparableCount,
+    needsReview:
+      source === "ai_estimate"
+        ? referenceEstimate?.needsReview ?? true
+        : referenceEstimate?.needsReview ?? false,
+    valuationWarnings: referenceEstimate?.valuationWarnings ?? valuationAssessment.warnings,
+    valuationMode: "standard",
+    evidenceStrength: referenceEstimate?.evidenceStrength ?? valuationAssessment.evidenceStrength,
+    appliedValueCeiling: referenceEstimate?.appliedValueCeiling ?? null,
+    sourceBreakdown: referenceEstimate?.sourceBreakdown ?? valuationAssessment.sourceBreakdown,
+  };
+}
+
 export class ScanPipeline {
   private readonly visionProcessor: VisionProcessor;
 
@@ -943,6 +1201,8 @@ export class ScanPipeline {
   private readonly searchEngine: AntiqueSearchEngine;
 
   private readonly onProgress?: (progress: ScanProgressState) => void;
+
+  private lastLookupProgress: ScanLookupProgress | null = null;
 
   constructor(options: ScanPipelineOptions = {}) {
     this.visionProcessor = options.visionProcessor ?? new VisionProcessor();
@@ -958,9 +1218,23 @@ export class ScanPipeline {
   ): Promise<ScanResult> {
     const currentUser = await this.resolveCurrentUser();
     const pipelineStartedAt = Date.now();
+    const scanResultID = createScanResultID();
+    const logBuilder = createAnalysisLogBuilder({
+      appraisalMode,
+      categoryHint: category,
+    });
+    logBuilder.add("stage", "Scan started", "Started the live analysis pipeline.", {
+      details: [`images=${images.length}`, `mode=${appraisalMode}`],
+    });
+
+    let uploadedImageUrls: string[] = [];
+    let identification: GeminiIdentifyResponse | null = null;
 
     try {
-      this.emitProgress("processing", "active");
+      logBuilder.add("stage", "Image preparation", "Preparing captured images for OCR and upload.", {
+        details: [`images=${images.length}`],
+      });
+      this.emitProgress("processing", "active", buildLookupProgress("image_preparation"));
       const visionResults = await performanceMonitor.measureAsync(
         "scan.process-images",
         () =>
@@ -970,16 +1244,31 @@ export class ScanPipeline {
         },
       );
       const combinedVisionText = extractCombinedText(visionResults);
-      this.emitProgress("processing", "complete");
+      logBuilder.add("response", "Image preparation", "Prepared image payloads for analysis.", {
+        details: [
+          `processed images=${visionResults.length}`,
+          `ocr chars=${combinedVisionText.length}`,
+          `barcodes=${visionResults.reduce((count, result) => count + result.barcodes.length, 0)}`,
+        ],
+      });
+      this.emitProgress("processing", "complete", buildLookupProgress("image_preparation"));
 
-      const uploadedImageUrls = await this.uploadImagesSafely(
+      uploadedImageUrls = await this.uploadImagesSafely(
         currentUser?.uid ?? null,
         visionResults,
       );
 
-      this.emitProgress("identifying", "active");
+      this.emitProgress("identifying", "active", buildLookupProgress("gemini"));
       const identifyStartedAt = Date.now();
-      const identification = await performanceMonitor.measureAsync(
+      logBuilder.add("request", "Gemini AI identification", "Sent the item to Gemini for identification.", {
+        details: [
+          `appraisal mode=${appraisalMode}`,
+          `category hint=${category}`,
+          `image payloads=${visionResults.length}`,
+          `ocr preview=${combinedVisionText.slice(0, 120) || "none"}`,
+        ],
+      });
+      identification = await performanceMonitor.measureAsync(
         "scan.identify-item",
         () =>
           this.geminiClient.identifyItem(
@@ -997,15 +1286,33 @@ export class ScanPipeline {
         category,
         appraisalMode,
       });
-      this.emitProgress("identifying", "complete");
+      logBuilder.add("response", "Gemini AI identification", "Received Gemini identification output.", {
+        details: [
+          `name=${identification.name}`,
+          `category=${resolveIdentificationCategory(identification)}`,
+          `year=${identification.year ?? "unknown"}`,
+          `confidence=${identification.confidence.toFixed(2)}`,
+          `pricing confidence=${(identification.pricingConfidence ?? identification.valuationConfidence ?? 0).toFixed(2)}`,
+          `bullion=${identification.isBullion === true ? "yes" : "no"}`,
+        ],
+      });
+      this.emitProgress("identifying", "active", buildLookupProgress("condition"));
+      this.emitProgress("identifying", "complete", buildLookupProgress("condition"));
 
-      this.emitProgress("pricing", "active");
+      this.emitProgress("pricing", "active", buildLookupProgress("marketplace"));
       const searchCategory = deriveSearchCategory(identification, category);
+      const comparableQueryKeywords = buildComparableQueryKeywords(identification, visionResults);
+      logBuilder.add("request", "Marketplace comparable search", "Queried Firestore comparables for similar sales.", {
+        details: [
+          `keywords=${comparableQueryKeywords.join(", ") || "none"}`,
+          `category filter=${searchCategory ?? "none"}`,
+        ],
+      });
       const rawComparableAuctions = await performanceMonitor.measureAsync(
         "scan.find-prices",
         () =>
           this.searchEngine.searchComparableAuctions(
-            buildSearchQuery(identification, visionResults),
+            comparableQueryKeywords,
             searchCategory ? { category: searchCategory } : {},
             16,
           ),
@@ -1018,6 +1325,22 @@ export class ScanPipeline {
         rankComparableAuctions(rawComparableAuctions, identification, category, appraisalMode).slice(0, 12),
       );
       const comparableAuctions = rankedComparableAuctions.map((candidate) => candidate.item);
+      logBuilder.add("response", "Marketplace comparable search", "Received candidate sales from Firestore.", {
+        details: [
+          `raw candidates=${rawComparableAuctions.length}`,
+          `ranked candidates=${rankedComparableAuctions.length}`,
+          `sources=${Array.from(new Set(comparableAuctions.map((item) => normalizeSourceName(item.source)))).join(", ") || "none"}`,
+        ],
+      });
+      if (
+        comparableAuctions.some((item) => {
+          const normalizedSource = normalizeSourceName(item.source);
+          return PREMIUM_AUCTION_SOURCES.has(normalizedSource);
+        })
+      ) {
+        this.emitProgress("pricing", "active", buildLookupProgress("auction_records"));
+        logBuilder.add("stage", "Auction cross-check", "Cross-checking premium auction records found among comparables.");
+      }
       const valuationAssessment = assessValuation(
         identification,
         rankedComparableAuctions,
@@ -1032,7 +1355,6 @@ export class ScanPipeline {
         valuationAssessment,
         appraisalMode,
       );
-      const hasDatabaseEstimate = hasNumericEstimate(databasePriceEstimate);
       const priceEstimate =
         appraisalMode === "mystery"
           ? finalizeMysteryPriceEstimate(
@@ -1041,22 +1363,119 @@ export class ScanPipeline {
               databasePriceEstimate,
               aiFallbackPriceEstimate,
             )
-          : hasDatabaseEstimate
-            ? databasePriceEstimate
-            : aiFallbackPriceEstimate ?? databasePriceEstimate;
-      this.emitProgress("pricing", "complete");
+          : buildRoutedStandardPriceEstimate(
+              await getPricingForItem(
+                identification,
+                {
+                  low: aiFallbackPriceEstimate?.low ?? identification.estimatedValueLow ?? null,
+                  high: aiFallbackPriceEstimate?.high ?? identification.estimatedValueHigh ?? null,
+                  confidence:
+                    aiFallbackPriceEstimate?.valuationConfidence ??
+                    aiFallbackPriceEstimate?.confidence ??
+                    identification.pricingConfidence ??
+                    identification.valuationConfidence ??
+                    identification.confidence,
+                },
+                {
+                  firestoreEstimate: databasePriceEstimate,
+                  onProgress: (event) => {
+                    this.emitProgress(
+                      "pricing",
+                      "active",
+                      buildLookupProgress(event.sourceKey, event.message),
+                    );
+                  },
+                  onLog: (event) => {
+                    logBuilder.add(event.kind, event.title, event.message, {
+                      details: event.details,
+                    });
+                  },
+                },
+              ),
+              identification,
+              databasePriceEstimate,
+              aiFallbackPriceEstimate,
+              valuationAssessment,
+            );
+      logBuilder.add("decision", "Final price estimate", "Built the final estimate for the result screen.", {
+        details: [
+          `source=${priceEstimate.sourceLabel ?? priceEstimate.source ?? "unknown"}`,
+          `range=${priceEstimate.low ?? "n/a"}-${priceEstimate.high ?? "n/a"}`,
+          `confidence=${(priceEstimate.valuationConfidence ?? priceEstimate.confidence).toFixed(2)}`,
+        ],
+      });
+      this.emitProgress("pricing", "complete", buildLookupProgress("marketplace"));
 
-      this.emitProgress("saving", "active");
+      this.emitProgress("saving", "active", buildLookupProgress("final_estimate"));
       const scannedAt = new Date().toISOString();
-      const scanResultId = await this.saveResultSafely({
+      logBuilder.add("save", "Scan result persistence", "Preparing to save the scan result and analysis log.", {
+        source: "Firebase",
+        details: [`scan id=${scanResultID}`],
+      });
+      const analysisLog = logBuilder.build({
+        scanId: scanResultID,
+        detectedCategory: resolveIdentificationCategory(identification),
+        itemName: identification.name,
+        finalSource: priceEstimate.sourceLabel ?? priceEstimate.source ?? null,
+      });
+      const saveOutcome = await this.saveResultSafely({
+        id: scanResultID,
         userId: currentUser?.uid ?? "anonymous-local",
         category,
         images: uploadedImageUrls,
         identification,
         priceEstimate,
         scannedAt,
+        analysisLog,
       });
-      this.emitProgress("saving", "complete");
+      const persistedPriceEstimate = saveOutcome.persisted
+        ? priceEstimate
+        : {
+            ...priceEstimate,
+            valuationWarnings: appendUniqueWarning(
+              priceEstimate.valuationWarnings,
+              saveOutcome.warning,
+            ),
+          };
+      if (saveOutcome.persisted) {
+        logBuilder.add("save", "Scan result persistence", "Saved the scan result and analysis log to Firebase.", {
+          source: "Firebase",
+          details: [`scan id=${scanResultID}`],
+        });
+      } else {
+        logBuilder.add(
+          "warning",
+          "Scan result persistence",
+          saveOutcome.warning ??
+            "Cloud save was unavailable, so this scan and its log were kept on device only.",
+          {
+            source: "Firebase",
+          },
+        );
+      }
+      const persistedAnalysisLog = attachScanIdToAnalysisLog(
+        logBuilder.build({
+          scanId: scanResultID,
+          detectedCategory: resolveIdentificationCategory(identification),
+          itemName: identification.name,
+          finalSource: persistedPriceEstimate.sourceLabel ?? persistedPriceEstimate.source ?? null,
+        }),
+        scanResultID,
+      );
+      if (saveOutcome.persisted) {
+        await this.persistFinalAnalysisLog({
+          id: scanResultID,
+          userId: currentUser?.uid ?? "anonymous-local",
+          category,
+          images: uploadedImageUrls,
+          identification,
+          priceEstimate: persistedPriceEstimate,
+          scannedAt,
+          analysisLog: persistedAnalysisLog,
+        });
+      }
+      this.emitProgress("saving", "active", buildLookupProgress("saving"));
+      this.emitProgress("saving", "complete", buildLookupProgress("saving"));
       this.emitProgress("done", "complete");
       performanceMonitor.logSearchQuery(Date.now() - pipelineStartedAt, {
         metric: "scan.total",
@@ -1064,18 +1483,46 @@ export class ScanPipeline {
       });
 
       return {
-        id: scanResultId,
+        id: scanResultID,
         userId: currentUser?.uid ?? "anonymous-local",
         category,
         images,
         uploadedImageUrls,
         vision: visionResults,
         identification,
-        priceEstimate,
+        priceEstimate: persistedPriceEstimate,
         comparableAuctions,
         scannedAt,
+        analysisLog: persistedAnalysisLog,
       };
     } catch (error) {
+      const failureMessage =
+        error instanceof ScanPipelineError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Unknown scan pipeline failure.";
+      const lastStepMessage = this.lastLookupProgress?.message ?? "Analysis did not reach a traceable source step.";
+      logBuilder.add("warning", "Analysis failed", failureMessage, {
+        source: this.lastLookupProgress?.sourceLabel ?? null,
+        details: [`last step=${lastStepMessage}`],
+      });
+      const failureLog = logBuilder.build({
+        scanId: scanResultID,
+        detectedCategory: identification ? resolveIdentificationCategory(identification) : null,
+        itemName: identification?.name ?? null,
+        finalSource: this.lastLookupProgress?.sourceLabel ?? null,
+      });
+      await this.saveFailureLogSafely({
+        id: scanResultID,
+        userId: currentUser?.uid ?? "anonymous-local",
+        category,
+        images: uploadedImageUrls,
+        analysisLog: failureLog,
+        scannedAt: new Date().toISOString(),
+        errorSummary: failureMessage,
+        failedStep: lastStepMessage,
+      });
       this.emitProgress("done", "error");
 
       if (error instanceof ScanPipelineError) {
@@ -1118,11 +1565,18 @@ export class ScanPipeline {
     }
   }
 
-  private emitProgress(step: ScanProgressState["step"], status: ScanProgressState["status"]): void {
+  private emitProgress(
+    step: ScanProgressState["step"],
+    status: ScanProgressState["status"],
+    lookupProgress?: ScanLookupProgress | null,
+  ): void {
+    this.lastLookupProgress = lookupProgress ?? null;
     this.onProgress?.({
       step,
       label: STEP_LABELS[step],
       status,
+      currentSearchSource: lookupProgress?.message,
+      lookupProgress: lookupProgress ?? null,
     });
   }
 
@@ -1172,14 +1626,17 @@ export class ScanPipeline {
   }
 
   private async saveResultSafely(
-    payload: Omit<ScanResult, "id" | "uploadedImageUrls" | "vision"> & { images: string[] },
-  ): Promise<string> {
+    payload: Omit<ScanResult, "uploadedImageUrls" | "vision"> & { images: string[] },
+  ): Promise<{ persisted: boolean; warning?: string | null }> {
     if (!payload.userId || payload.userId === "anonymous-local") {
-      return `scan-${Date.now().toString(36)}`;
+      return {
+        persisted: false,
+        warning: "Cloud save was unavailable because Firebase anonymous auth did not complete. This scan and its log were kept on device only.",
+      };
     }
 
     try {
-      const scanResultId = await performanceMonitor.measureAsync(
+      await performanceMonitor.measureAsync(
         "scan.save-result",
         () => saveScanResult(payload),
         {
@@ -1189,10 +1646,47 @@ export class ScanPipeline {
       performanceMonitor.trackFirestoreWrite(1, {
         area: "scan_results",
       });
-      return scanResultId;
+      return { persisted: true };
     } catch (error) {
       console.warn("[VaultScope] Scan result save failed. Continuing with local result only.", error);
-      return `scan-${Date.now().toString(36)}`;
+      return {
+        persisted: false,
+        warning: "Cloud save failed, so this scan and its log were kept on device only.",
+      };
+    }
+  }
+
+  private async persistFinalAnalysisLog(
+    payload: Omit<ScanResult, "uploadedImageUrls" | "vision"> & { images: string[] },
+  ): Promise<void> {
+    try {
+      await saveScanResult(payload);
+    } catch (error) {
+      console.warn("[VaultScope] Final analysis log sync failed.", error);
+    }
+  }
+
+  private async saveFailureLogSafely(payload: {
+    id: string;
+    userId: string;
+    category: string;
+    images: string[];
+    analysisLog: NonNullable<ScanResult["analysisLog"]>;
+    scannedAt: string;
+    errorSummary: string;
+    failedStep: string;
+  }): Promise<void> {
+    if (!payload.userId || payload.userId === "anonymous-local") {
+      return;
+    }
+
+    try {
+      await saveFailedScanLog(payload);
+      performanceMonitor.trackFirestoreWrite(1, {
+        area: "scan_results.failure_log",
+      });
+    } catch (error) {
+      console.warn("[VaultScope] Failed analysis log could not be saved.", error);
     }
   }
 }

@@ -2,6 +2,7 @@ import type { AnalysisService } from "@src/domain/contracts";
 import type { ScanResult, TemporaryScanSession } from "@src/domain/models";
 import { RemoteScanOrchestrator } from "@src/features/scan/RemoteScanOrchestrator";
 import { seededScanResult, seededTemporarySession } from "@src/test/fixtures/mockData";
+import type { ScanProgressState } from "@/lib/scan/types";
 
 function uniqueStages(sequence: string[]): string[] {
   return sequence.filter((stage, index) => stage !== sequence[index - 1]);
@@ -20,11 +21,85 @@ describe("RemoteScanOrchestrator", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("emits all stages in correct order", async () => {
-    const mockAnalysisService: AnalysisService = {
+  function createProgressingAnalysisService(
+    steps: ScanProgressState[],
+    result: ScanResult = mockScanResult,
+  ): AnalysisService {
+    return {
       isConfigured: jest.fn().mockResolvedValue(true),
-      runAnalysis: jest.fn().mockResolvedValue(mockScanResult)
+      runAnalysis: jest.fn().mockImplementation(async (_session, onProgress) => {
+        steps.forEach((step) => {
+          onProgress?.(step);
+        });
+        return result;
+      }),
     };
+  }
+
+  it("emits all stages in correct order", async () => {
+    const mockAnalysisService = createProgressingAnalysisService([
+      {
+        step: "processing",
+        label: "Processing image...",
+        status: "active",
+        currentSearchSource: "Preparing scan images",
+      },
+      {
+        step: "identifying",
+        label: "Identifying item...",
+        status: "active",
+        currentSearchSource: "Checking Gemini AI identification",
+        lookupProgress: {
+          sourceKey: "gemini",
+          sourceLabel: "Gemini AI",
+          message: "Checking Gemini AI identification",
+        },
+      },
+      {
+        step: "identifying",
+        label: "Identifying item...",
+        status: "active",
+        currentSearchSource: "Assessing visible wear and overall condition",
+        lookupProgress: {
+          sourceKey: "condition",
+          sourceLabel: "Condition review",
+          message: "Assessing visible wear and overall condition",
+        },
+      },
+      {
+        step: "pricing",
+        label: "Finding prices...",
+        status: "active",
+        currentSearchSource: "Searching recent marketplace sales",
+        lookupProgress: {
+          sourceKey: "marketplace",
+          sourceLabel: "Marketplace sales",
+          message: "Searching recent marketplace sales",
+        },
+      },
+      {
+        step: "pricing",
+        label: "Finding prices...",
+        status: "active",
+        currentSearchSource: "Cross-checking auction records",
+        lookupProgress: {
+          sourceKey: "auction_records",
+          sourceLabel: "Auction records",
+          message: "Cross-checking auction records",
+        },
+      },
+      {
+        step: "saving",
+        label: "Almost done...",
+        status: "active",
+        currentSearchSource: "Building final estimate",
+        lookupProgress: {
+          sourceKey: "final_estimate",
+          sourceLabel: "Final estimate",
+          message: "Building final estimate",
+        },
+      },
+    ]);
 
     const orchestrator = new RemoteScanOrchestrator(mockAnalysisService, 1);
     const stages: string[] = [];
@@ -44,10 +119,7 @@ describe("RemoteScanOrchestrator", () => {
   });
 
   it("calls remote analysis during the scan flow with the current session", async () => {
-    const mockAnalysisService: AnalysisService = {
-      isConfigured: jest.fn().mockResolvedValue(true),
-      runAnalysis: jest.fn().mockResolvedValue(mockScanResult)
-    };
+    const mockAnalysisService = createProgressingAnalysisService([]);
 
     const orchestrator = new RemoteScanOrchestrator(mockAnalysisService, 1);
 
@@ -55,7 +127,7 @@ describe("RemoteScanOrchestrator", () => {
       // consume generator
     }
 
-    expect(mockAnalysisService.runAnalysis).toHaveBeenCalledWith(mockSession);
+    expect(mockAnalysisService.runAnalysis).toHaveBeenCalledWith(mockSession, expect.any(Function));
     expect(mockAnalysisService.runAnalysis).toHaveBeenCalledTimes(1);
   });
 
@@ -100,5 +172,47 @@ describe("RemoteScanOrchestrator", () => {
     expect(mockAnalysisService.runAnalysis).toHaveBeenCalledTimes(1);
     expect(completedResult).toBeUndefined();
     expect(completedResult?.name).not.toBe("Blue Note First Press LP");
+  });
+
+  it("passes through friendly source progress labels for live analysis", async () => {
+    const sourceLines: string[] = [];
+    const mockAnalysisService = createProgressingAnalysisService([
+      {
+        step: "pricing",
+        label: "Finding prices...",
+        status: "active",
+        currentSearchSource: "Checking PCGS price guide",
+        lookupProgress: {
+          sourceKey: "pcgs",
+          sourceLabel: "PCGS Price Guide",
+          message: "Checking PCGS price guide",
+        },
+      },
+      {
+        step: "pricing",
+        label: "Finding prices...",
+        status: "active",
+        currentSearchSource: "Checking live metals spot prices",
+        lookupProgress: {
+          sourceKey: "metals",
+          sourceLabel: "Metals API",
+          message: "Checking live metals spot prices",
+        },
+      },
+    ]);
+
+    const orchestrator = new RemoteScanOrchestrator(mockAnalysisService, 1);
+    for await (const update of orchestrator.process(mockSession)) {
+      if (update.currentSearchSource) {
+        sourceLines.push(update.currentSearchSource);
+      }
+    }
+
+    expect(sourceLines).toEqual(
+      expect.arrayContaining([
+        "Checking PCGS price guide",
+        "Checking live metals spot prices",
+      ]),
+    );
   });
 });

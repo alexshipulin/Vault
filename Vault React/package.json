@@ -18,12 +18,14 @@
     "check:readiness": "node scripts/readiness-check.mjs",
     "check-readiness": "node scripts/readiness-check.mjs",
     "check:design": "node scripts/design-audit.mjs",
-    "logs:device-errors": "node scripts/device-error-sink.mjs"
+    "logs:device-errors": "node scripts/device-error-sink.mjs",
+    "logs:analysis": "node scripts/read-analysis-log.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "^54.0.33",
     "expo-camera": "~17.0.10",
+    "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-file-system": "~19.0.21",
     "expo-image-manipulator": "~14.0.8",

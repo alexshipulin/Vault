@@ -10,6 +10,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 
+import { attachScanIdToAnalysisLog } from "@/lib/analysis/logs";
 import { getVaultScopeDb } from "@/lib/firebase/config";
 import type { CollectionItem, ScanResult, UserProfile } from "@/lib/types";
 
@@ -20,6 +21,7 @@ export async function saveScanResult(
   const scanCollection = collection(db, "scan_results");
   const reference = payload.id ? doc(db, "scan_results", payload.id) : doc(scanCollection);
   const scannedAt = payload.scannedAt ?? new Date().toISOString();
+  const analysisLog = attachScanIdToAnalysisLog(payload.analysisLog, reference.id);
 
   await setDoc(
     reference,
@@ -29,7 +31,41 @@ export async function saveScanResult(
       images: payload.images,
       identification: payload.identification,
       priceEstimate: payload.priceEstimate,
+      analysisLog,
       scannedAt,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return reference.id;
+}
+
+export async function saveFailedScanLog(payload: {
+  id: string;
+  userId: string;
+  category: string;
+  images: string[];
+  analysisLog: NonNullable<ScanResult["analysisLog"]>;
+  scannedAt: string;
+  errorSummary: string;
+  failedStep: string;
+}): Promise<string> {
+  const db = getVaultScopeDb();
+  const reference = doc(db, "scan_results", payload.id);
+  const analysisLog = attachScanIdToAnalysisLog(payload.analysisLog, reference.id);
+
+  await setDoc(
+    reference,
+    {
+      userId: payload.userId,
+      category: payload.category,
+      images: payload.images,
+      analysisLog,
+      scannedAt: payload.scannedAt,
+      status: "failed",
+      errorSummary: payload.errorSummary,
+      failedStep: payload.failedStep,
       updatedAt: serverTimestamp(),
     },
     { merge: true },
