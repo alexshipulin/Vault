@@ -1,33 +1,31 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { AppConfig } from "@/constants/Config";
 import type { GeminiIdentifyResponse } from "@/lib/gemini/types";
 
 const PCGS_API_BASE = "https://api.pcgs.com/publicapi";
 const PCGS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const PCGS_REQUEST_DELAY_MS = 200;
+const PCGS_RETRY_DELAY_MS = 350;
+const PCGS_REQUEST_TIMEOUT_MS = 8_000;
 
 type CachedLookup<T> = {
   value: T;
   expiresAt: string;
 };
 
-type CoinFactsCandidate = {
+type CoinFactsPayload = {
   PCGSNo?: number | string;
+  CertNo?: string;
   Name?: string;
-  Denomination?: string;
   Year?: number | string;
+  Denomination?: string;
   MintMark?: string;
+  Grade?: string;
   PriceGuideValue?: number | string | null;
   PriceGuideValues?: unknown;
-  PriceGuide?: unknown;
-  GradeValues?: unknown;
-  Prices?: unknown;
-};
-
-type PCGSAuthResponse = {
-  token?: string;
-  Token?: string;
-  accessToken?: string;
+  IsValidRequest?: boolean;
+  ServerMessage?: string;
 };
 
 export interface PCGSCoinPrice {
@@ -41,10 +39,12 @@ export interface PCGSCoinPrice {
 }
 
 type LookupParams = {
-  year: number;
-  denomination: string;
-  mintMark?: string;
-  variety?: string;
+  certNo?: string;
+  barcode?: string;
+  gradingService?: "PCGS" | "NGC";
+  pcgsNo?: string | number;
+  gradeNo?: number;
+  plusGrade?: boolean;
 };
 
 let lastPcgsRequestAt = 0;
@@ -65,32 +65,6 @@ async function throttlePcgsRequests(): Promise<void> {
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
-}
-
-function normalizeDenominationInput(value: string): string {
-  const normalized = normalizeWhitespace(value).toLowerCase();
-
-  if (normalized.includes("morgan")) return "Morgan Dollar";
-  if (normalized.includes("peace")) return "Peace Dollar";
-  if (normalized.includes("silver eagle") || normalized.includes("american eagle")) return "Silver Eagle";
-  if (normalized.includes("gold eagle")) return "Gold Eagle";
-  if (normalized.includes("quarter")) return "25C";
-  if (normalized.includes("dime")) return "10C";
-  if (normalized.includes("nickel")) return "5C";
-  if (normalized.includes("half dollar")) return "50C";
-  if (normalized.includes("cent") || normalized.includes("penny")) return "1C";
-  if (normalized.includes("dollar")) return "1$";
-
-  return value.trim();
-}
-
-function normalizeMintMark(value?: string): string {
-  if (!value) {
-    return "";
-  }
-
-  const normalized = value.trim().toUpperCase();
-  return normalized === "NO MINT" ? "" : normalized;
 }
 
 function normalizeNumber(value: unknown): number | null {
@@ -175,27 +149,15 @@ function extractGradePricePairs(input: unknown): Record<string, number> {
   return Object.fromEntries(entries);
 }
 
-function buildPriceGuideValues(candidate: CoinFactsCandidate): Record<string, number> {
-  const nestedSources = [
-    candidate.PriceGuideValues,
-    candidate.PriceGuide,
-    candidate.GradeValues,
-    candidate.Prices,
-  ];
-
-  for (const source of nestedSources) {
-    const extracted = extractGradePricePairs(source);
-    if (Object.keys(extracted).length > 0) {
-      return extracted;
-    }
+function buildPriceGuideValues(payload: CoinFactsPayload): Record<string, number> {
+  const nestedValues = extractGradePricePairs(payload.PriceGuideValues);
+  if (Object.keys(nestedValues).length > 0) {
+    return nestedValues;
   }
 
-  const guideValue = normalizeNumber(candidate.PriceGuideValue);
-  if (guideValue != null) {
-    return { GUIDE: Math.round(guideValue) };
-  }
-
-  return {};
+  const guideValue = normalizeNumber(payload.PriceGuideValue);
+  const grade = typeof payload.Grade === "string" && payload.Grade.trim() ? payload.Grade.trim() : "GUIDE";
+  return guideValue != null ? { [grade]: Math.round(guideValue) } : {};
 }
 
 function summarizePriceGuideValues(priceGuideValues: Record<string, number>): {
@@ -217,39 +179,20 @@ function summarizePriceGuideValues(priceGuideValues: Record<string, number>): {
   };
 }
 
-function extractCoinCandidates(payload: unknown): CoinFactsCandidate[] {
-  if (Array.isArray(payload)) {
-    return payload.filter((entry): entry is CoinFactsCandidate => Boolean(entry && typeof entry === "object"));
+function buildLookupCacheKey(params: LookupParams): string | null {
+  if (params.certNo) {
+    return `pcgs_cert_${params.certNo}`;
   }
 
-  if (!payload || typeof payload !== "object") {
-    return [];
+  if (params.barcode) {
+    return `pcgs_barcode_${params.barcode}_${params.gradingService ?? "PCGS"}`;
   }
 
-  const record = payload as Record<string, unknown>;
-  const collectionKeys = ["Coins", "CoinFacts", "Listings", "Items", "Results", "Data"];
-
-  for (const key of collectionKeys) {
-    if (Array.isArray(record[key])) {
-      return record[key].filter((entry): entry is CoinFactsCandidate => Boolean(entry && typeof entry === "object"));
-    }
+  if (params.pcgsNo != null && params.gradeNo != null) {
+    return `pcgs_grade_${params.pcgsNo}_${params.gradeNo}_${params.plusGrade === true ? "plus" : "base"}`;
   }
 
-  if (
-    typeof record.Name === "string" ||
-    typeof record.PCGSNo === "string" ||
-    typeof record.PCGSNo === "number"
-  ) {
-    return [record as CoinFactsCandidate];
-  }
-
-  return [];
-}
-
-function buildLookupCacheKey(params: LookupParams): string {
-  const mintMark = normalizeMintMark(params.mintMark);
-  const variety = params.variety?.trim().toUpperCase() ?? "";
-  return `pcgs_${params.year}_${normalizeDenominationInput(params.denomination)}_${mintMark}_${variety}`;
+  return null;
 }
 
 async function readCachedLookup(cacheKey: string): Promise<PCGSCoinPrice | null> {
@@ -286,73 +229,116 @@ async function writeCachedLookup(cacheKey: string, value: PCGSCoinPrice): Promis
   await AsyncStorage.setItem(cacheKey, JSON.stringify(payload));
 }
 
-function deriveMintMark(identification: GeminiIdentifyResponse): string | undefined {
-  const haystack = [
-    identification.name,
-    identification.objectType,
-    ...(identification.distinguishingFeatures ?? []),
-  ]
-    .filter((value): value is string => typeof value === "string")
-    .join(" ");
-
-  const directMatch = haystack.match(/\b(CC|O|S|D|P|W)\s+mint mark\b/i);
-  if (directMatch?.[1]) {
-    return directMatch[1].toUpperCase();
+function extractCoinFactsPayload(payload: unknown): CoinFactsPayload | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
   }
 
-  const compactMatch = haystack.match(/\b(18\d{2}|19\d{2}|20\d{2})[- ]?(CC|O|S|D|P|W)\b/i);
-  if (compactMatch?.[2]) {
-    return compactMatch[2].toUpperCase();
+  const record = payload as CoinFactsPayload;
+
+  if (record.IsValidRequest === false) {
+    return null;
   }
 
-  return undefined;
+  if (typeof record.ServerMessage === "string" && /no data found/i.test(record.ServerMessage)) {
+    return null;
+  }
+
+  if (
+    typeof record.Name === "string" ||
+    typeof record.PCGSNo === "string" ||
+    typeof record.PCGSNo === "number"
+  ) {
+    return record;
+  }
+
+  return null;
 }
 
-function deriveVariety(identification: GeminiIdentifyResponse): string | undefined {
-  const haystack = [
-    identification.name,
-    ...(identification.distinguishingFeatures ?? []),
-    ...(identification.searchKeywords ?? []),
-  ]
-    .filter((value): value is string => typeof value === "string")
-    .join(" ");
-
-  const supportedVarieties = ["VDB", "DMPL", "PL", "CAM", "DCAM", "FS"];
-
-  for (const variety of supportedVarieties) {
-    const pattern = new RegExp(`\\b${variety}\\b`, "i");
-    if (pattern.test(haystack)) {
-      return variety;
-    }
+function buildCoinPrice(payload: CoinFactsPayload): PCGSCoinPrice | null {
+  const pcgsNo = normalizeNumber(payload.PCGSNo);
+  if (pcgsNo == null) {
+    return null;
   }
 
-  return undefined;
+  const priceGuideValues = buildPriceGuideValues(payload);
+  const { averageCirculatedValue, averageUncirculatedValue } = summarizePriceGuideValues(priceGuideValues);
+
+  return {
+    coinName: normalizeWhitespace(payload.Name ?? "Unknown PCGS Coin"),
+    pcgsNo,
+    priceGuideValues,
+    averageCirculatedValue,
+    averageUncirculatedValue,
+    source: "pcgs",
+    fetchedAt: new Date().toISOString(),
+  };
 }
 
-function deriveDenomination(identification: GeminiIdentifyResponse): string | null {
-  const haystack = [
+function collectTextSignals(identification: GeminiIdentifyResponse): string {
+  return [
     identification.name,
-    identification.objectType,
+    identification.historySummary,
     ...(identification.searchKeywords ?? []),
     ...(identification.distinguishingFeatures ?? []),
   ]
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     .join(" ");
+}
 
-  if (!haystack) {
-    return null;
+function deriveCertNo(identification: GeminiIdentifyResponse): string | undefined {
+  const text = collectTextSignals(identification);
+  const explicitMatch = text.match(/\bcert(?:ificate)?(?:\s*(?:no|number|#))?\s*[:#-]?\s*([0-9]{6,12})\b/i);
+  if (explicitMatch?.[1]) {
+    return explicitMatch[1];
   }
 
-  const normalized = haystack.toLowerCase();
-  if (normalized.includes("morgan")) return "Morgan Dollar";
-  if (normalized.includes("peace dollar")) return "Peace Dollar";
-  if (normalized.includes("silver eagle")) return "Silver Eagle";
-  if (normalized.includes("quarter")) return "25C";
-  if (normalized.includes("dime")) return "10C";
-  if (normalized.includes("nickel")) return "5C";
-  if (normalized.includes("half dollar")) return "50C";
-  if (normalized.includes("cent") || normalized.includes("penny")) return "1C";
-  if (normalized.includes("dollar")) return "1$";
+  return undefined;
+}
+
+function deriveBarcode(identification: GeminiIdentifyResponse): string | undefined {
+  const text = collectTextSignals(identification);
+  const barcodeMatch = text.match(/\bbarcode(?:\s*(?:no|number|#))?\s*[:#-]?\s*([a-z0-9-]{8,48})\b/i);
+  if (barcodeMatch?.[1]) {
+    return barcodeMatch[1].toUpperCase();
+  }
+
+  return undefined;
+}
+
+function derivePcgsNo(identification: GeminiIdentifyResponse): string | undefined {
+  const text = collectTextSignals(identification);
+  const explicit = text.match(/\bpcgs(?:\s*(?:no|number|#))?\s*[:#-]?\s*([0-9]{3,8})\b/i);
+  if (explicit?.[1]) {
+    return explicit[1];
+  }
+
+  return undefined;
+}
+
+function deriveGradeInfo(identification: GeminiIdentifyResponse): { gradeNo: number; plusGrade: boolean } | null {
+  const text = collectTextSignals(identification);
+  const compactGrade = text.match(/\b(?:MS|PR|PF|AU|XF|EF|VF|F|VG|G|AG)\s*([1-7]?[0-9])(\+)?\b/i);
+  if (compactGrade?.[1]) {
+    const gradeNo = Number.parseInt(compactGrade[1], 10);
+    if (Number.isFinite(gradeNo) && gradeNo > 0 && gradeNo <= 70) {
+      return {
+        gradeNo,
+        plusGrade: Boolean(compactGrade[2]),
+      };
+    }
+  }
+
+  const explicitGrade = text.match(/\bgrade\s*[:#-]?\s*([1-7]?[0-9])(\+)?\b/i);
+  if (explicitGrade?.[1]) {
+    const gradeNo = Number.parseInt(explicitGrade[1], 10);
+    if (Number.isFinite(gradeNo) && gradeNo > 0 && gradeNo <= 70) {
+      return {
+        gradeNo,
+        plusGrade: Boolean(explicitGrade[2]),
+      };
+    }
+  }
 
   return null;
 }
@@ -366,219 +352,168 @@ function looksLikeCoinCategory(identification: GeminiIdentifyResponse): boolean 
   return haystack.includes("coin") || haystack.includes("dollar") || haystack.includes("cent");
 }
 
+function buildLegacyCredentialToken(): string | null {
+  if (AppConfig.pcgs.email && AppConfig.pcgs.password) {
+    return `${AppConfig.pcgs.email}:${AppConfig.pcgs.password}`;
+  }
+
+  if (AppConfig.pcgs.username && AppConfig.pcgs.password) {
+    return `${AppConfig.pcgs.username}:${AppConfig.pcgs.password}`;
+  }
+
+  return null;
+}
+
 export class PCGSClient {
-  private token: string | null = null;
+  private async fetchWithTimeout(path: string, bearerToken: string): Promise<Response> {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeoutId = setTimeout(() => {
+      controller?.abort();
+    }, PCGS_REQUEST_TIMEOUT_MS);
 
-  private authUnavailable = false;
-
-  private async request(path: string, init: RequestInit = {}, retryOnUnauthorized = true): Promise<Response> {
-    await throttlePcgsRequests();
-    const token = await this.getToken();
-    const response = await fetch(`${PCGS_API_BASE}${path}`, {
-      ...init,
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-        token,
-        ...(init.headers ?? {}),
-      },
-    });
-
-    if (response.status === 401 && retryOnUnauthorized) {
-      this.token = null;
-      const refreshedToken = await this.getToken();
-      await throttlePcgsRequests();
-      return fetch(`${PCGS_API_BASE}${path}`, {
-        ...init,
+    try {
+      return await fetch(`${PCGS_API_BASE}${path}`, {
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${refreshedToken}`,
-          token: refreshedToken,
-          ...(init.headers ?? {}),
+          Authorization: `Bearer ${bearerToken}`,
         },
+        signal: controller?.signal,
       });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`PCGS request timed out after ${PCGS_REQUEST_TIMEOUT_MS}ms.`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return response;
   }
 
-  private pickBestCandidate(candidates: CoinFactsCandidate[], params: LookupParams): CoinFactsCandidate | null {
-    if (candidates.length === 0) {
-      return null;
-    }
-
-    const targetDenomination = normalizeDenominationInput(params.denomination).toLowerCase();
-    const targetMintMark = normalizeMintMark(params.mintMark).toLowerCase();
-    const targetVariety = params.variety?.trim().toLowerCase() ?? "";
-
-    const scored = candidates.map((candidate) => {
-      let score = 0;
-      const candidateName = normalizeWhitespace(candidate.Name ?? "").toLowerCase();
-      const candidateDenomination = normalizeWhitespace(candidate.Denomination ?? "").toLowerCase();
-      const candidateMintMark = normalizeMintMark(candidate.MintMark).toLowerCase();
-      const candidateYear = normalizeNumber(candidate.Year);
-
-      if (candidateYear === params.year) {
-        score += 4;
-      }
-      if (candidateDenomination === targetDenomination || candidateName.includes(targetDenomination)) {
-        score += 3;
-      }
-      if (targetMintMark && candidateMintMark === targetMintMark) {
-        score += 2;
-      }
-      if (targetVariety && candidateName.includes(targetVariety)) {
-        score += 1;
-      }
-
-      return { candidate, score };
-    });
-
-    scored.sort((left, right) => right.score - left.score);
-    return scored[0]?.candidate ?? null;
+  private resolveBearerToken(): string | null {
+    return AppConfig.pcgs.apiKey ?? buildLegacyCredentialToken();
   }
 
-  private buildCoinPrice(candidate: CoinFactsCandidate): PCGSCoinPrice | null {
-    const pcgsNo = normalizeNumber(candidate.PCGSNo);
-    const priceGuideValues = buildPriceGuideValues(candidate);
-    const { averageCirculatedValue, averageUncirculatedValue } = summarizePriceGuideValues(priceGuideValues);
-    const fallbackGuideValue = normalizeNumber(candidate.PriceGuideValue);
-
-    if (pcgsNo == null) {
-      return null;
+  private async getJson<T>(path: string, attempts = 2): Promise<T> {
+    const bearerToken = this.resolveBearerToken();
+    if (!bearerToken) {
+      throw new Error("PCGS API key is not configured.");
     }
 
-    return {
-      coinName: normalizeWhitespace(candidate.Name ?? "Unknown PCGS Coin"),
-      pcgsNo,
-      priceGuideValues:
-        Object.keys(priceGuideValues).length > 0
-          ? priceGuideValues
-          : fallbackGuideValue != null
-            ? { GUIDE: fallbackGuideValue }
-            : {},
-      averageCirculatedValue,
-      averageUncirculatedValue,
-      source: "pcgs",
-      fetchedAt: new Date().toISOString(),
-    };
-  }
+    let lastError: Error | null = null;
 
-  private async getJson<T>(path: string): Promise<T> {
-    const response = await this.request(path);
-    if (!response.ok) {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      await throttlePcgsRequests();
+
+      const response = await this.fetchWithTimeout(path, bearerToken);
+
+      if (response.ok) {
+        return (await response.json()) as T;
+      }
+
       const text = await response.text();
-      throw new Error(`PCGS request failed (${response.status}): ${text.slice(0, 240)}`);
+      lastError = new Error(`PCGS request failed (${response.status}): ${text.slice(0, 240)}`);
+      const shouldRetry = [401, 429, 500, 502, 503, 504].includes(response.status);
+
+      if (!shouldRetry || attempt >= attempts) {
+        throw lastError;
+      }
+
+      await delay(PCGS_RETRY_DELAY_MS * attempt);
     }
 
-    return (await response.json()) as T;
+    throw lastError ?? new Error("Unknown PCGS request failure.");
   }
 
-  private async getToken(): Promise<string> {
-    if (this.authUnavailable) {
-      throw new Error("PCGS authentication endpoint is unavailable.");
-    }
+  private async lookupByCertNo(certNo: string): Promise<PCGSCoinPrice | null> {
+    const path = `/coindetail/GetCoinFactsByCertNo/${encodeURIComponent(certNo)}?retrieveAllData=true`;
+    const payload = await this.getJson<unknown>(path);
+    const normalized = extractCoinFactsPayload(payload);
+    return normalized ? buildCoinPrice(normalized) : null;
+  }
 
-    if (this.token) {
-      return this.token;
-    }
-
-    const username = AppConfig.pcgs.username;
-    const password = AppConfig.pcgs.password;
-
-    if (!username || !password) {
-      throw new Error("PCGS credentials are not configured.");
-    }
-
-    await throttlePcgsRequests();
-    const response = await fetch(`${PCGS_API_BASE}/account/authenticate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        userName: username,
-        password,
-      }),
+  private async lookupByBarcode(
+    barcode: string,
+    gradingService: "PCGS" | "NGC" = "PCGS",
+  ): Promise<PCGSCoinPrice | null> {
+    const query = new URLSearchParams({
+      barcode,
+      gradingService,
     });
+    const payload = await this.getJson<unknown>(`/coindetail/GetCoinFactsByBarcode?${query.toString()}`);
+    const normalized = extractCoinFactsPayload(payload);
+    return normalized ? buildCoinPrice(normalized) : null;
+  }
 
-    if (!response.ok) {
-      const text = await response.text();
-      if (response.status === 404) {
-        this.authUnavailable = true;
-      }
-      throw new Error(`PCGS authentication failed (${response.status}): ${text.slice(0, 240)}`);
-    }
-
-    const payload = (await response.json()) as PCGSAuthResponse;
-    const token = payload.token ?? payload.Token ?? payload.accessToken ?? null;
-
-    if (!token) {
-      throw new Error("PCGS authentication returned no token.");
-    }
-
-    this.token = token;
-    return token;
+  private async lookupByGrade(
+    pcgsNo: string | number,
+    gradeNo: number,
+    plusGrade = false,
+  ): Promise<PCGSCoinPrice | null> {
+    const query = new URLSearchParams({
+      PCGSNo: String(pcgsNo),
+      GradeNo: String(gradeNo),
+      PlusGrade: plusGrade ? "true" : "false",
+    });
+    const payload = await this.getJson<unknown>(`/coindetail/GetCoinFactsByGrade?${query.toString()}`);
+    const normalized = extractCoinFactsPayload(payload);
+    return normalized ? buildCoinPrice(normalized) : null;
   }
 
   async lookupCoin(params: LookupParams): Promise<PCGSCoinPrice | null> {
-    const denomination = normalizeDenominationInput(params.denomination);
-    if (!params.year || !denomination) {
+    const cacheKey = buildLookupCacheKey(params);
+    if (cacheKey) {
+      const cached = await readCachedLookup(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    let result: PCGSCoinPrice | null = null;
+
+    if (params.certNo) {
+      result = await this.lookupByCertNo(params.certNo);
+    } else if (params.barcode) {
+      result = await this.lookupByBarcode(params.barcode, params.gradingService ?? "PCGS");
+    } else if (params.pcgsNo != null && params.gradeNo != null) {
+      result = await this.lookupByGrade(params.pcgsNo, params.gradeNo, params.plusGrade === true);
+    } else {
       return null;
     }
 
-    const normalizedParams: LookupParams = {
-      year: params.year,
-      denomination,
-      mintMark: normalizeMintMark(params.mintMark),
-      variety: params.variety?.trim() || undefined,
-    };
-
-    const cacheKey = buildLookupCacheKey(normalizedParams);
-    const cached = await readCachedLookup(cacheKey);
-    if (cached) {
-      return cached;
+    if (result && cacheKey) {
+      await writeCachedLookup(cacheKey, result);
     }
 
-    const query = new URLSearchParams({
-      coinYear: String(normalizedParams.year),
-      denomination: normalizedParams.denomination,
-      mintMark: normalizedParams.mintMark ?? "",
-    });
-
-    if (normalizedParams.variety) {
-      query.set("variety", normalizedParams.variety);
-    }
-
-    const payload = await this.getJson<unknown>(`/coindetail/GetCoinFactsListing?${query.toString()}`);
-    const candidate = this.pickBestCandidate(extractCoinCandidates(payload), normalizedParams);
-    const coinPrice = candidate ? this.buildCoinPrice(candidate) : null;
-
-    if (coinPrice) {
-      await writeCachedLookup(cacheKey, coinPrice);
-    }
-
-    return coinPrice;
+    return result;
   }
 
   async safeLookup(identification: GeminiIdentifyResponse): Promise<PCGSCoinPrice | null> {
     try {
-      if (!looksLikeCoinCategory(identification) || identification.year == null) {
+      if (!looksLikeCoinCategory(identification)) {
         return null;
       }
 
-      const denomination = deriveDenomination(identification);
-      if (!denomination) {
-        return null;
+      const certNo = deriveCertNo(identification);
+      if (certNo) {
+        return await this.lookupCoin({ certNo });
       }
 
-      return await this.lookupCoin({
-        year: identification.year,
-        denomination,
-        mintMark: deriveMintMark(identification),
-        variety: deriveVariety(identification),
-      });
+      const barcode = deriveBarcode(identification);
+      if (barcode) {
+        return await this.lookupCoin({ barcode, gradingService: "PCGS" });
+      }
+
+      const pcgsNo = derivePcgsNo(identification);
+      const grade = deriveGradeInfo(identification);
+      if (pcgsNo && grade) {
+        return await this.lookupCoin({
+          pcgsNo,
+          gradeNo: grade.gradeNo,
+          plusGrade: grade.plusGrade,
+        });
+      }
+
+      return null;
     } catch (error) {
       console.warn("[PCGS] Coin lookup failed.", error);
       return null;

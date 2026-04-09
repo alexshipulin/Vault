@@ -3,6 +3,8 @@ import type { PriceEstimate } from "@/lib/types";
 
 import type { VinylPriceResult } from "./DiscogsClient";
 import { discogsClient } from "./DiscogsClient";
+import type { EBayPriceResult } from "./EBayClient";
+import { ebayClient } from "./EBayClient";
 import type { BullionEstimate } from "./MetalsClient";
 import { metalsClient } from "./MetalsClient";
 import type { PCGSCoinPrice } from "./PCGSClient";
@@ -12,14 +14,15 @@ export interface PriceResult {
   low: number | null;
   high: number | null;
   mid: number | null;
-  source: "pcgs" | "discogs" | "metals" | "firestore" | "ai_estimate";
+  source: "pcgs" | "discogs" | "metals" | "firestore" | "ai_estimate" | "ebay";
   confidenceLevel: "high" | "medium" | "low";
   sourceLabel: string;
   fetchedAt: string;
+  warnings?: string[];
 }
 
 export interface PriceRouterProgressEvent {
-  sourceKey: "pcgs" | "discogs" | "metals" | "firestore" | "ai_estimate";
+  sourceKey: "pcgs" | "discogs" | "metals" | "firestore" | "ai_estimate" | "ebay";
   sourceLabel: string;
   message: string;
 }
@@ -168,6 +171,18 @@ function buildDiscogsResult(vinylPrice: VinylPriceResult): PriceResult {
   };
 }
 
+function buildEBayResult(ebayPrice: EBayPriceResult): PriceResult {
+  return {
+    low: ebayPrice.recommendedLow,
+    high: ebayPrice.recommendedHigh,
+    mid: getMid(ebayPrice.recommendedLow, ebayPrice.recommendedHigh),
+    source: "ebay",
+    confidenceLevel: ebayPrice.confidenceLevel,
+    sourceLabel: "eBay Active Listings",
+    fetchedAt: ebayPrice.fetchedAt,
+  };
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -226,15 +241,36 @@ function prefersFirestoreEstimate(estimate?: PriceEstimate | null): boolean {
   return hasNumericRange(estimate.low, estimate.high) && estimateConfidence(estimate) >= 0.5;
 }
 
+function isMarketplaceFallbackCategory(category?: string | null): boolean {
+  const normalized = category?.trim().toLowerCase();
+  return normalized === "antique" || normalized === "general" || normalized === "art";
+}
+
+function consumeEBayFailureReason(): string | null {
+  if (!ebayClient || typeof ebayClient.consumeLastFailureReason !== "function") {
+    return null;
+  }
+
+  return ebayClient.consumeLastFailureReason();
+}
+
 export async function getPricingForItem(
   identification: GeminiIdentifyResponse,
   aiEstimate: AIEstimateInput,
   context: PricingRouterContext = {},
 ): Promise<PriceResult> {
   const firestoreEstimate = context.firestoreEstimate ?? null;
+  const sourceWarnings: string[] = [];
+  const withWarnings = (result: PriceResult): PriceResult =>
+    sourceWarnings.length > 0
+      ? {
+          ...result,
+          warnings: Array.from(new Set([...(result.warnings ?? []), ...sourceWarnings])),
+        }
+      : result;
   const aiResult = buildAiResult(aiEstimate);
 
-  if (identification.category === "coin" && identification.year != null && isCoinIdentification(identification)) {
+  if (identification.category === "coin" && isCoinIdentification(identification)) {
     context.onLog?.({
       kind: "request",
       title: "PCGS lookup",
@@ -328,7 +364,7 @@ export async function getPricingForItem(
           message: "Used PCGS pricing because collector premium exceeded bullion value.",
           details: [`pcgs high=${pcgsHigh}`, `bullion high=${bullionHigh}`],
         });
-        return buildPcgsResult(pcgsPrice);
+        return withWarnings(buildPcgsResult(pcgsPrice));
       }
 
       context.onLog?.({
@@ -337,7 +373,7 @@ export async function getPricingForItem(
         message: "Used bullion pricing because no stronger collector premium was confirmed.",
         details: [`range=${bullionResult.low}-${bullionResult.high}`],
       });
-      return bullionResult;
+      return withWarnings(bullionResult);
     }
 
     if (pcgsPrice) {
@@ -347,7 +383,7 @@ export async function getPricingForItem(
         message: "Used PCGS price guide as the primary source.",
         details: [`range=${pcgsPrice.averageCirculatedValue ?? "n/a"}-${pcgsPrice.averageUncirculatedValue ?? "n/a"}`],
       });
-      return buildPcgsResult(pcgsPrice);
+      return withWarnings(buildPcgsResult(pcgsPrice));
     }
 
     if (hasNumericRange(aiResult.low, aiResult.high)) {
@@ -356,7 +392,7 @@ export async function getPricingForItem(
         title: "Pricing decision",
         message: "Fell back to the AI estimate because no stronger coin pricing source matched.",
       });
-      return aiResult;
+      return withWarnings(aiResult);
     }
 
     if (firestoreEstimate && hasNumericRange(firestoreEstimate.low, firestoreEstimate.high)) {
@@ -365,7 +401,7 @@ export async function getPricingForItem(
         title: "Pricing decision",
         message: "Fell back to Firestore comparables because AI estimate was unavailable.",
       });
-      return buildFirestoreResult(firestoreEstimate);
+      return withWarnings(buildFirestoreResult(firestoreEstimate));
     }
 
     context.onLog?.({
@@ -373,7 +409,7 @@ export async function getPricingForItem(
       title: "Pricing decision",
       message: "Returned the AI estimate as the final fallback.",
     });
-    return aiResult;
+    return withWarnings(aiResult);
   }
 
   if (identification.category === "vinyl") {
@@ -422,7 +458,60 @@ export async function getPricingForItem(
         title: "Pricing decision",
         message: "Used Discogs marketplace pricing as the primary source.",
       });
-      return buildDiscogsResult(discogsPrice);
+      return withWarnings(buildDiscogsResult(discogsPrice));
+    }
+
+    if (!discogsPrice) {
+      context.onLog?.({
+        kind: "request",
+        title: "eBay lookup",
+        message: "Requested eBay active listings for vinyl.",
+        details: [`name=${identification.name}`],
+      });
+      context.onProgress?.({
+        sourceKey: "ebay",
+        sourceLabel: "eBay Active Listings",
+        message: "Checking eBay marketplace",
+      });
+      const { result: ebayPrice, attemptsUsed: ebayAttempts } = await retryNullableLookup(
+        () => ebayClient?.safeLookup(identification) ?? Promise.resolve(null),
+        3,
+      ).catch((error: unknown) => {
+        context.onLog?.({
+          kind: "warning",
+          title: "eBay lookup",
+          message: "eBay pricing was unavailable.",
+          details: [error instanceof Error ? error.message : "Unknown eBay failure"],
+        });
+        return { result: null, attemptsUsed: 2 };
+      });
+      const ebayFailureReason = consumeEBayFailureReason();
+      if (ebayFailureReason) {
+        sourceWarnings.push(`eBay lookup unavailable: ${ebayFailureReason}`);
+      }
+      context.onLog?.({
+        kind: "response",
+        title: "eBay lookup",
+        message: ebayPrice ? "Received eBay active listings." : "eBay returned no matches.",
+        details: ebayPrice
+          ? [
+              `range=${ebayPrice.recommendedLow}-${ebayPrice.recommendedHigh}`,
+              `listings=${ebayPrice.listings.length}`,
+              `attempts=${ebayAttempts}`,
+            ]
+          : [
+              `attempts=${ebayAttempts}`,
+              ...(ebayFailureReason ? [`reason=${ebayFailureReason}`] : []),
+            ],
+      });
+      if (ebayPrice) {
+        context.onLog?.({
+          kind: "decision",
+          title: "Pricing decision",
+          message: "Used eBay active listings as fallback for vinyl.",
+        });
+        return withWarnings(buildEBayResult(ebayPrice));
+      }
     }
 
     if (!hasNumericRange(aiResult.low, aiResult.high) && firestoreEstimate) {
@@ -431,27 +520,77 @@ export async function getPricingForItem(
         title: "Pricing decision",
         message: "Used Firestore comparables because Discogs and AI pricing were unavailable.",
       });
-      return buildFirestoreResult(firestoreEstimate);
+      return withWarnings(buildFirestoreResult(firestoreEstimate));
     }
     context.onLog?.({
       kind: "decision",
       title: "Pricing decision",
       message: "Used the AI estimate because Discogs did not return a usable price.",
     });
-    return aiResult;
+    return withWarnings(aiResult);
   }
 
-  if (
-    (identification.category === "antique" || identification.category === "general") &&
-    firestoreEstimate &&
-    prefersFirestoreEstimate(firestoreEstimate)
-  ) {
+  if (isMarketplaceFallbackCategory(identification.category) && firestoreEstimate && prefersFirestoreEstimate(firestoreEstimate)) {
     context.onLog?.({
       kind: "decision",
       title: "Pricing decision",
       message: "Used Firestore comparables because they were strong enough for this category.",
     });
-    return buildFirestoreResult(firestoreEstimate);
+    return withWarnings(buildFirestoreResult(firestoreEstimate));
+  }
+
+  if (isMarketplaceFallbackCategory(identification.category)) {
+    if (
+      !firestoreEstimate ||
+      !prefersFirestoreEstimate(firestoreEstimate)
+    ) {
+      context.onLog?.({
+        kind: "request",
+        title: "eBay lookup",
+        message: "Requested eBay active listings for antique/general item.",
+        details: [`name=${identification.name}`],
+      });
+      context.onProgress?.({
+        sourceKey: "ebay",
+        sourceLabel: "eBay Active Listings",
+        message: "Checking eBay marketplace",
+      });
+      const { result: ebayPrice, attemptsUsed: ebayAttempts } = await retryNullableLookup(
+        () => ebayClient?.safeLookup(identification) ?? Promise.resolve(null),
+        3,
+      ).catch((error: unknown) => {
+        context.onLog?.({
+          kind: "warning",
+          title: "eBay lookup",
+          message: "eBay pricing was unavailable for this item.",
+          details: [error instanceof Error ? error.message : "Unknown eBay failure"],
+        });
+        return { result: null, attemptsUsed: 2 };
+      });
+      const ebayFailureReason = consumeEBayFailureReason();
+      if (ebayFailureReason) {
+        sourceWarnings.push(`eBay lookup unavailable: ${ebayFailureReason}`);
+      }
+
+      context.onLog?.({
+        kind: "response",
+        title: "eBay lookup",
+        message: ebayPrice ? "Received eBay active listings." : "eBay returned no matches for this item.",
+        details: [
+          `attempts=${ebayAttempts}`,
+          ...(ebayFailureReason ? [`reason=${ebayFailureReason}`] : []),
+        ],
+      });
+
+      if (ebayPrice) {
+        context.onLog?.({
+          kind: "decision",
+          title: "Pricing decision",
+          message: "Used eBay active listings for antique/general pricing.",
+        });
+        return withWarnings(buildEBayResult(ebayPrice));
+      }
+    }
   }
 
   if (hasNumericRange(aiResult.low, aiResult.high)) {
@@ -460,7 +599,7 @@ export async function getPricingForItem(
       title: "Pricing decision",
       message: "Used the AI estimate as the primary fallback.",
     });
-    return aiResult;
+    return withWarnings(aiResult);
   }
 
   if (firestoreEstimate) {
@@ -469,7 +608,7 @@ export async function getPricingForItem(
       title: "Pricing decision",
       message: "Used Firestore comparables because the AI estimate was unavailable.",
     });
-    return buildFirestoreResult(firestoreEstimate);
+    return withWarnings(buildFirestoreResult(firestoreEstimate));
   }
 
   context.onLog?.({
@@ -477,5 +616,5 @@ export async function getPricingForItem(
     title: "Pricing decision",
     message: "Returned the AI estimate as the last available source.",
   });
-  return aiResult;
+  return withWarnings(aiResult);
 }

@@ -5,7 +5,12 @@ import { AsyncStorageTemporaryScanSessionStore } from "@src/data/local/AsyncStor
 import { clearVaultReactStorage } from "@src/data/local/storage";
 import { seededItems } from "@src/data/seeds/seededItems";
 import { DEFAULT_PREFERENCES, type ChatMessage } from "@src/domain/models";
-import { scansThisMonth, totalCollectionValue } from "@src/shared/utils/formatters";
+import {
+  collectibleListItemFromResult,
+  scansThisMonth,
+  totalCollectionValue,
+  valueRangeText,
+} from "@src/shared/utils/formatters";
 import { seededTemporarySession } from "@src/test/fixtures/mockData";
 
 describe("local stores and aggregate utilities", () => {
@@ -69,11 +74,76 @@ describe("local stores and aggregate utilities", () => {
   });
 
   it("computes scans this month and total collection value from saved items", () => {
-    const now = new Date("2026-03-31T12:00:00.000Z");
+    const now = new Date(seededItems[0]?.addedAt ?? new Date().toISOString());
 
     expect(scansThisMonth(seededItems, now)).toBeGreaterThan(0);
     expect(totalCollectionValue(seededItems)).toBe(
       seededItems.reduce((sum, item) => sum + (item.priceMid ?? item.priceHigh ?? item.priceLow ?? 0), 0)
     );
+  });
+
+  it("formats collection item ranges with result-style priority", () => {
+    expect(
+      valueRangeText(
+        {
+          priceLow: 20,
+          priceMid: 35,
+          priceHigh: 45,
+        },
+        "usd",
+      ),
+    ).toBe("$20 — $45");
+
+    expect(
+      valueRangeText(
+        {
+          priceLow: null,
+          priceMid: 32,
+          priceHigh: null,
+        },
+        "usd",
+      ),
+    ).toBe("$32");
+
+    expect(
+      valueRangeText(
+        {
+          priceLow: 18,
+          priceMid: null,
+          priceHigh: null,
+        },
+        "usd",
+      ),
+    ).toBe("$18");
+  });
+
+  it("uses the same range format for unsaved scan results", () => {
+    const listItem = collectibleListItemFromResult(
+      {
+        id: "scan-test",
+        category: "antique",
+        name: "Cinnabar Box",
+        condition: 3,
+        conditionRangeLow: 2,
+        conditionRangeHigh: 4,
+        historySummary: "Decorative box.",
+        confidence: 0.4,
+        priceData: {
+          low: 30,
+          mid: 38,
+          high: 45,
+          currency: "USD",
+          source: "aiEstimate",
+          sourceLabel: "AI Estimate",
+          fetchedAt: "2026-04-09T00:00:00.000Z",
+        },
+        rawAIResponse: "{}",
+        scannedAt: "2026-04-09T00:00:00.000Z",
+        inputImageHashes: [],
+      },
+      "usd",
+    );
+
+    expect(listItem.valueText).toBe("$30 — $45");
   });
 });

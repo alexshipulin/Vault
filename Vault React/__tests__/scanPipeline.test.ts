@@ -8,6 +8,7 @@ const mockProcessImage = jest.fn();
 const mockPcgsSafeLookup = jest.fn();
 const mockDiscogsLookupVinyl = jest.fn();
 const mockMetalsEstimateBullionValue = jest.fn();
+const mockEbaySafeLookup = jest.fn();
 
 jest.mock("@/lib/firebase/config", () => ({
   getVaultScopeAuth: () => mockGetVaultScopeAuth(),
@@ -90,6 +91,13 @@ jest.mock("@/src/services/pricing/MetalsClient", () => ({
   },
 }));
 
+jest.mock("@/src/services/pricing/EBayClient", () => ({
+  ebayClient: {
+    safeLookup: (...args: unknown[]) => mockEbaySafeLookup(...args),
+    consumeLastFailureReason: jest.fn(() => null),
+  },
+}));
+
 jest.mock("@/lib/performance/monitoring", () => ({
   performanceMonitor: {
     measureAsync: async <T>(_: string, operation: () => Promise<T>) => operation(),
@@ -150,6 +158,7 @@ describe("ScanPipeline", () => {
     mockPcgsSafeLookup.mockResolvedValue(null);
     mockDiscogsLookupVinyl.mockResolvedValue(null);
     mockMetalsEstimateBullionValue.mockResolvedValue(null);
+    mockEbaySafeLookup.mockResolvedValue(null);
     mockProcessImage.mockResolvedValue({
       originalUri: "file:///tmp/test.jpg",
       croppedUri: "file:///tmp/test-crop.jpg",
@@ -168,7 +177,12 @@ describe("ScanPipeline", () => {
 
     expect(result.userId).toBe("anonymous-local");
     expect(result.id).toMatch(/^scan-/);
-    expect(mockSaveScanResult).not.toHaveBeenCalled();
+    expect(mockSaveScanResult).toHaveBeenCalled();
+    expect(mockSaveScanResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "anonymous-local",
+      }),
+    );
     expect(mockUploadScanImage).not.toHaveBeenCalled();
     expect(mockIdentifyItem).toHaveBeenCalledWith(
       expect.any(Array),
@@ -522,6 +536,46 @@ describe("ScanPipeline", () => {
         "This appears to be a common decorative object.",
       ]),
     );
+  });
+
+  it("caps mystery confidence for routed eBay fallback when evidence is weak", async () => {
+    mockIdentifyItem.mockResolvedValue(
+      seededIdentification({
+        category: "general",
+        name: "Cinnabar Lacquer Box",
+        objectType: "box",
+        material: "lacquer",
+        makerOrBrand: null,
+        confidence: 0.78,
+        valuationConfidence: 0.44,
+        pricingConfidence: 0.44,
+        marketTier: "decor",
+        pricingEvidenceStrength: "weak",
+        likelyRetailContext: "flea_market",
+        searchKeywords: ["cinnabar", "lacquer", "box", "dragon"],
+        estimatedValueLow: 30,
+        estimatedValueHigh: 45,
+      }),
+    );
+    mockSearchComparableAuctions.mockResolvedValue([]);
+    mockEbaySafeLookup.mockResolvedValue({
+      recommendedLow: 20,
+      recommendedHigh: 75,
+      listings: [],
+      confidenceLevel: "high",
+      fetchedAt: "2026-04-09T00:00:00.000Z",
+    });
+
+    const { ScanPipeline } = require("@/lib/scan/pipeline") as typeof import("@/lib/scan/pipeline");
+    const pipeline = new ScanPipeline();
+    const result = await pipeline.executeScan(["file:///tmp/test.jpg"], "general", "mystery");
+
+    expect(result.priceEstimate.source).toBe("ebay");
+    expect(result.priceEstimate.valuationConfidence).toBeLessThanOrEqual(0.45);
+    expect(result.priceEstimate.high ?? 0).toBeLessThanOrEqual(35);
+    expect((result.priceEstimate.high ?? 0) / Math.max(result.priceEstimate.low ?? 1, 1)).toBeLessThanOrEqual(2);
+    expect(result.priceEstimate.needsReview).toBe(true);
+    expect(result.priceEstimate.valuationWarnings?.length ?? 0).toBeGreaterThan(0);
   });
 
   it("does not let premium-auction-only mystery comps inflate a cheap decorative item", async () => {

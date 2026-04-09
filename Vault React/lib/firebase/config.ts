@@ -1,9 +1,11 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   getAuth,
+  getReactNativePersistence,
   initializeAuth,
   type Auth,
 } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   CACHE_SIZE_UNLIMITED,
   getFirestore,
@@ -48,7 +50,9 @@ export function getVaultScopeAuth(): Auth {
   const app = getFirebaseApp();
 
   try {
-    firebaseAuth = initializeAuth(app);
+    firebaseAuth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
   } catch {
     firebaseAuth = getAuth(app);
   }

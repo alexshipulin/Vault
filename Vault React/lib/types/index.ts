@@ -16,7 +16,7 @@ export interface PriceEstimate {
   currency: string;
   confidence: number;
   valuationConfidence?: number;
-  source?: "database" | "ai_estimate" | "pcgs" | "discogs" | "metals";
+  source?: "database" | "ai_estimate" | "pcgs" | "discogs" | "ebay" | "metals";
   sourceLabel?: string | null;
   matchedSources?: string[];
   comparableCount?: number;

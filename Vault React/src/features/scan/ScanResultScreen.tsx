@@ -9,9 +9,41 @@ import {
   ResultPresentationScreen,
   type ResultPresentationAction,
 } from "@src/features/results/ResultPresentationScreen";
-import { buildResultPresentationFromScanResult } from "@src/features/results/resultPresentation";
+import {
+  buildResultPresentationFromCollectionItem,
+  buildResultPresentationFromScanResult,
+} from "@src/features/results/resultPresentation";
 import { t } from "@src/shared/i18n/strings";
-import { collectibleListItemFromResult } from "@src/shared/utils/formatters";
+import { collectibleListItemFromItem, collectibleListItemFromResult } from "@src/shared/utils/formatters";
+
+function buildFallbackLogCopyText({
+  resultId,
+  title,
+  subtitle,
+  valueText,
+  sourceText,
+  summaryText,
+  timestampText,
+}: {
+  resultId: string;
+  title: string;
+  subtitle: string;
+  valueText: string;
+  sourceText: string;
+  summaryText: string;
+  timestampText: string;
+}): string {
+  return [
+    "VaultScope Analysis Log",
+    `Scan ID: ${resultId}`,
+    `Item: ${title}`,
+    `Context: ${subtitle}`,
+    `Estimated Value: ${valueText}`,
+    `Source: ${sourceText}`,
+    `Updated: ${timestampText}`,
+    `Summary: ${summaryText}`,
+  ].join("\n");
+}
 
 export function ScanResultScreen() {
   const router = useRouter();
@@ -27,8 +59,10 @@ export function ScanResultScreen() {
   } = useAppState();
   const [isSaved, setIsSaved] = useState(false);
   const [preferredCurrency, setPreferredCurrency] = useState<PreferredCurrency>("usd");
+  const [historyItem, setHistoryItem] = useState<CollectibleItem | null>(null);
 
-  const result = latestResult?.id === params.resultId ? latestResult : null;
+  const resultID = params.resultId ?? "";
+  const result = latestResult?.id === resultID ? latestResult : null;
 
   useEffect(() => {
     const load = async () => {
@@ -36,47 +70,81 @@ export function ScanResultScreen() {
         container.collectionRepository.fetchAll(),
         container.preferencesStore.load(),
       ]);
-      setIsSaved(items.some((item) => item.id === result?.id));
+      const matchedHistoryItem = items.find((item) => item.id === resultID) ?? null;
+      setHistoryItem(matchedHistoryItem);
+      setIsSaved(Boolean(matchedHistoryItem) || items.some((item) => item.id === result?.id));
       setPreferredCurrency(preferences.preferredCurrency);
     };
 
     void load();
-  }, [container, result?.id]);
+  }, [container, result?.id, resultID]);
 
   const previewUri = useMemo(() => {
-    if (!result) {
-      return undefined;
+    if (result) {
+      if (selectedItem?.id === result.id && selectedItem.photoUri) {
+        return selectedItem.photoUri;
+      }
+
+      return currentSession?.capturedImages[0]?.uri;
     }
 
-    if (selectedItem?.id === result.id && selectedItem.photoUri) {
+    if (selectedItem?.id === resultID && selectedItem.photoUri) {
       return selectedItem.photoUri;
     }
 
-    return currentSession?.capturedImages[0]?.uri;
-  }, [currentSession?.capturedImages, result, selectedItem]);
+    return historyItem?.photoUris.find((uri) => Boolean(uri));
+  }, [currentSession?.capturedImages, historyItem, result, resultID, selectedItem]);
 
   const presentation = useMemo(() => {
-    if (!result) {
-      return null;
+    if (result) {
+      return buildResultPresentationFromScanResult(result, preferredCurrency, previewUri);
     }
 
-    return buildResultPresentationFromScanResult(result, preferredCurrency, previewUri);
-  }, [preferredCurrency, previewUri, result]);
+    if (historyItem) {
+      return buildResultPresentationFromCollectionItem(historyItem, preferredCurrency);
+    }
+
+    return null;
+  }, [historyItem, preferredCurrency, previewUri, result]);
 
   const shareText = useMemo(() => {
-    if (!result || !presentation) {
+    if (!presentation) {
       return "";
     }
 
     return [
-      result.name,
+      presentation.title,
       presentation.subtitle,
       `${t("result.value")}: ${presentation.valueText}`,
-      `${presentation.confidenceLabel ?? t("result.confidence")}: ${Math.round((presentation.confidence ?? result.confidence) * 100)}%`,
+      `${presentation.confidenceLabel ?? t("result.confidence")}: ${Math.round((presentation.confidence ?? 0) * 100)}%`,
     ].join("\n");
-  }, [presentation, result]);
+  }, [presentation]);
 
-  const logCopyText = result?.analysisLog?.copyText?.trim() ?? "";
+  const logCopyText = useMemo(() => {
+    const directLogText = result?.analysisLog?.copyText?.trim();
+    if (directLogText) {
+      return directLogText;
+    }
+
+    const savedLogText = historyItem?.analysisLogCopyText?.trim();
+    if (savedLogText) {
+      return savedLogText;
+    }
+
+    if (!presentation) {
+      return "";
+    }
+
+    return buildFallbackLogCopyText({
+      resultId: result?.id ?? historyItem?.id ?? resultID,
+      title: presentation.title,
+      subtitle: presentation.subtitle,
+      valueText: presentation.valueText,
+      sourceText: presentation.sourceText,
+      summaryText: presentation.summaryText,
+      timestampText: presentation.updatedText || historyItem?.updatedAt || result?.scannedAt || "",
+    });
+  }, [historyItem?.analysisLogCopyText, historyItem?.id, historyItem?.updatedAt, presentation, result?.analysisLog?.copyText, result?.id, result?.scannedAt, resultID]);
 
   const copyLogs = useCallback(async () => {
     if (!logCopyText) {
@@ -124,6 +192,7 @@ export function ScanResultScreen() {
       comparableCount: result.priceData?.comparableCount ?? null,
       needsReview: result.priceData?.needsReview ?? null,
       valuationWarnings: result.priceData?.valuationWarnings ?? null,
+      analysisLogCopyText: result.analysisLog?.copyText ?? null,
       historySummary: result.historySummary,
       addedAt: result.scannedAt,
       updatedAt: result.scannedAt,
@@ -158,7 +227,8 @@ export function ScanResultScreen() {
   ]);
 
   const actions = useMemo<ResultPresentationAction[]>(() => {
-    if (!result) {
+    const displayItemId = result?.id ?? historyItem?.id;
+    if (!displayItemId) {
       return [];
     }
 
@@ -177,14 +247,21 @@ export function ScanResultScreen() {
         icon: "chatbubble-outline",
         title: t("common.ask_ai"),
         onPress: () => {
-          setSelectedItem({
-            ...collectibleListItemFromResult(result, preferredCurrency),
-            photoUri: previewUri,
-          });
-          setSelectedItemID(result.id);
+          const selectedFromResult = result
+            ? {
+                ...collectibleListItemFromResult(result, preferredCurrency),
+                photoUri: previewUri,
+              }
+            : historyItem
+              ? collectibleListItemFromItem(historyItem, preferredCurrency)
+              : null;
+          if (selectedFromResult) {
+            setSelectedItem(selectedFromResult);
+            setSelectedItemID(selectedFromResult.id);
+          }
           router.push({
             pathname: "/chat/[itemId]",
-            params: { itemId: result.id, source: "result" },
+            params: { itemId: displayItemId, source: "result" },
           });
         },
         testID: "result.askAIButton",
@@ -198,7 +275,7 @@ export function ScanResultScreen() {
         testID: "result.shareButton",
       },
     ];
-  }, [isSaved, preferredCurrency, previewUri, result, router, save, setSelectedItem, setSelectedItemID, shareText]);
+  }, [historyItem, isSaved, preferredCurrency, previewUri, result, router, save, setSelectedItem, setSelectedItemID, shareText]);
 
   return (
     <ResultPresentationScreen

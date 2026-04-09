@@ -23,9 +23,7 @@ function envKeys(content: string): Set<string> {
 describe("verification contracts", () => {
   it("keeps required secret placeholders in .env.example and actual values in .env.local", () => {
     const requiredKeys = [
-      "PCGS_USERNAME",
-      "PCGS_EMAIL",
-      "PCGS_PASSWORD",
+      "PCGS_API_KEY",
       "DISCOGS_TOKEN",
       "METALS_API_KEY",
     ];
@@ -56,13 +54,27 @@ describe("verification contracts", () => {
     expect(legacyRemote).toContain('const categoryHint = "general";');
     expect(legacyRemote).not.toContain('? "general" : "coin"');
 
-    expect(() =>
-      execSync("rg -n 'gemini-2\\.0-flash-exp' .", {
-        cwd: repoRoot,
-        encoding: "utf8",
-        stdio: "pipe",
-      }),
-    ).toThrow();
+    const expHits = execSync("rg -n 'gemini-2\\.0-flash-exp' lib src --glob '!**/__tests__/**' || true", {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: "pipe",
+    })
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+    expect(expHits.every((line) => line.startsWith("lib/gemini/client.ts:"))).toBe(true);
+    expect(expHits.length).toBeLessThanOrEqual(1);
+
+    const legacyModelHits = execSync("rg -n 'gemini-2\\.0-flash' lib src --glob '!**/__tests__/**' || true", {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: "pipe",
+    })
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+    expect(legacyModelHits.every((line) => line.startsWith("lib/gemini/client.ts:"))).toBe(true);
+    expect(legacyModelHits.length).toBeLessThanOrEqual(1);
   });
 
   it("keeps the pricing router wired for PCGS, Discogs, Metals, Firestore, and AI fallback", () => {

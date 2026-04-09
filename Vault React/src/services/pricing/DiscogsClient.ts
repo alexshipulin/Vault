@@ -8,6 +8,7 @@ const DISCOGS_API_BASE = "https://api.discogs.com";
 const DISCOGS_USER_AGENT = "VaultScope/1.0 +https://vaultscope.app";
 const DISCOGS_PRICING_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const DISCOGS_PRICING_CACHE_KEY_PREFIX = "discogs_release_";
+const DISCOGS_REQUEST_TIMEOUT_MS = 8_000;
 const discogsRateLimiter = new GeminiRateLimiter(60, 60_000);
 
 type CachedValue<T> = {
@@ -225,6 +226,27 @@ function buildFallbackPricingFromStats(releaseId: number, payload: DiscogsStatsR
 export class DiscogsClient {
   private readonly token = AppConfig.discogsToken;
 
+  private async fetchWithTimeout(path: string, headers: HeadersInit): Promise<Response> {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeoutId = setTimeout(() => {
+      controller?.abort();
+    }, DISCOGS_REQUEST_TIMEOUT_MS);
+
+    try {
+      return await fetch(`${DISCOGS_API_BASE}${path}`, {
+        headers,
+        signal: controller?.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`Discogs request timed out after ${DISCOGS_REQUEST_TIMEOUT_MS}ms.`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   private async getJson<T>(path: string): Promise<{ status: number; body: T }> {
     const token = this.token;
     if (!token) {
@@ -232,9 +254,7 @@ export class DiscogsClient {
     }
 
     return discogsRateLimiter.schedule(async () => {
-      const response = await fetch(`${DISCOGS_API_BASE}${path}`, {
-        headers: buildHeaders(token),
-      });
+      const response = await this.fetchWithTimeout(path, buildHeaders(token));
 
       if (!response.ok) {
         const text = await response.text();

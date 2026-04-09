@@ -81,6 +81,7 @@ const STRINGS: StringMap = {
   "processing.detail.auction_records": "Cross-checking auction records",
   "processing.detail.pcgs": "Checking PCGS price guide",
   "processing.detail.discogs": "Checking Discogs marketplace history",
+  "processing.detail.ebay": "Checking eBay active listings",
   "processing.detail.metals": "Checking live metals spot prices",
   "processing.detail.final_estimate": "Building final estimate",
   "processing.detail.saving": "Saving scan result",

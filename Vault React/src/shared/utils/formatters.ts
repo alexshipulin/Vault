@@ -69,38 +69,67 @@ export function priceSourceDisplayName(source?: string | null): string {
   return PRICE_SOURCE_LABELS[source as PriceSource] ?? source;
 }
 
-export function valueRangeText(item: Pick<CollectibleItem, "priceLow" | "priceMid" | "priceHigh">, currency: PreferredCurrency = "usd"): string {
-  if (typeof item.priceLow === "number" && typeof item.priceHigh === "number") {
-    return `${formatCurrency(item.priceLow, currency)} - ${formatCurrency(item.priceHigh, currency)}`;
+function buildValueTextFromRange(
+  values: { low?: number | null; mid?: number | null; high?: number | null },
+  currency: PreferredCurrency,
+): string {
+  if (typeof values.low === "number" && typeof values.high === "number") {
+    return `${formatCurrency(values.low, currency)} — ${formatCurrency(values.high, currency)}`;
   }
 
-  if (typeof item.priceMid === "number") {
-    return formatCurrency(item.priceMid, currency);
+  if (typeof values.mid === "number") {
+    return formatCurrency(values.mid, currency);
   }
 
-  if (typeof item.priceLow === "number") {
-    return formatCurrency(item.priceLow, currency);
+  if (typeof values.low === "number") {
+    return formatCurrency(values.low, currency);
   }
 
-  if (typeof item.priceHigh === "number") {
-    return formatCurrency(item.priceHigh, currency);
+  if (typeof values.high === "number") {
+    return formatCurrency(values.high, currency);
   }
 
   return formatCurrency(0, currency);
+}
+
+export function valueRangeText(
+  item: Pick<CollectibleItem, "priceLow" | "priceMid" | "priceHigh">,
+  currency: PreferredCurrency = "usd",
+): string {
+  return buildValueTextFromRange(
+    {
+      low: item.priceLow,
+      mid: item.priceMid,
+      high: item.priceHigh,
+    },
+    currency,
+  );
+}
+
+export function scanResultValueRangeText(
+  result: Pick<ScanResult, "priceData">,
+  currency: PreferredCurrency = "usd",
+): string {
+  return buildValueTextFromRange(
+    {
+      low: result.priceData?.low ?? null,
+      mid: result.priceData?.mid ?? null,
+      high: result.priceData?.high ?? null,
+    },
+    currency,
+  );
 }
 
 export function collectibleListItemFromResult(
   result: ScanResult,
   currency: PreferredCurrency = "usd"
 ): CollectibleListItem {
-  const mid = result.priceData?.mid ?? 0;
-
   return {
     id: result.id,
     title: result.name,
     subtitle: result.origin ?? t("common.unknown"),
     categoryText: categoryDisplayName(result.category),
-    valueText: formatCurrency(mid, currency),
+    valueText: scanResultValueRangeText(result, currency),
     timestampText: formatDate(result.scannedAt),
     noteText: result.historySummary,
     thumbnailText: result.name.slice(0, 2).toUpperCase()

@@ -28,6 +28,7 @@ import { LocalMockChatResponseGenerator } from "@src/features/chat/LocalMockChat
 import { LocalMockScanOrchestrator } from "@src/features/scan/LocalMockScanOrchestrator";
 import { LocalMockScanResultFactory } from "@src/features/scan/MockScanResultFactory";
 import { RemoteScanOrchestrator } from "@src/features/scan/RemoteScanOrchestrator";
+import { getEBayClient } from "@src/services/pricing/EBayClient";
 
 export type ExtendedAppContainer = AppContainer & {
   runtimeConfig: RuntimeConfig;
@@ -77,6 +78,13 @@ export function createAppContainer(runtimeConfig = currentRuntimeConfig()): Exte
   const remoteSearchService = new LegacyRemoteSearchService();
   const remoteCollectionMirror = new LegacyRemoteCollectionMirrorService();
   const readinessService = new LegacyReadinessService(remoteSearchService, analysisService);
+  const ebayClient = AppConfig.ebay?.clientId && AppConfig.ebay?.clientSecret
+    ? getEBayClient(
+        AppConfig.ebay.clientId,
+        AppConfig.ebay.clientSecret,
+        AppConfig.ebay.campaignId
+      )
+    : null;
   const remoteOrchestrator: ScanOrchestrator = new RemoteScanOrchestrator(
     analysisService,
     effectiveRuntimeConfig.flags.fastProcessing ? 300 : 800,
@@ -84,6 +92,9 @@ export function createAppContainer(runtimeConfig = currentRuntimeConfig()): Exte
   const scanOrchestrator: ScanOrchestrator = effectiveRuntimeConfig.flags.remoteBackend
     ? remoteOrchestrator
     : localOrchestrator;
+
+  // Keep initialization in the DI container to ensure the singleton is hydrated early.
+  void ebayClient;
 
   return {
     runtimeConfig: effectiveRuntimeConfig,

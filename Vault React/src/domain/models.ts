@@ -24,6 +24,7 @@ export interface ComparableSale {
   soldAt: string;
   source?: string | null;
   sourceURL?: string | null;
+  isActive?: boolean;
 }
 
 export interface PriceData {
@@ -97,6 +98,7 @@ export interface CollectibleItem {
   comparableCount?: number | null;
   needsReview?: boolean | null;
   valuationWarnings?: string[] | null;
+  analysisLogCopyText?: string | null;
   historySummary: string;
   addedAt: string;
   updatedAt: string;
@@ -186,7 +188,7 @@ export interface AppReadinessReport {
 export type AppReadinessCheckStatus = "verified" | "failed" | "missing" | "configured" | "skipped";
 
 export interface AppReadinessCheck {
-  key: "firebase" | "firestore" | "gemini" | "pcgs" | "discogs" | "metals" | "persistence";
+  key: "firebase" | "firestore" | "gemini" | "pcgs" | "discogs" | "metals" | "ebay" | "persistence";
   label: string;
   status: AppReadinessCheckStatus;
   message: string;

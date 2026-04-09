@@ -446,12 +446,9 @@ export class AntiqueSearchEngine {
       }),
       [
         {
-          label: "comparables-asc-primary",
-          baseQuery: buildFirestoreQuery(keywords, filters, { sortDirection: "asc" }),
-        },
-        {
-          label: "comparables-asc-sorted-fallback",
-          baseQuery: buildKeywordSortedQuery(keywords, "asc"),
+          label: "comparables-asc-basic-primary",
+          baseQuery: buildKeywordOnlyQuery(keywords),
+          fetchLimit: buildFallbackFetchLimit(candidateLimit),
           transformResults: (results) =>
             applyLocalResultTransform(results, {
               filters,
@@ -461,7 +458,18 @@ export class AntiqueSearchEngine {
         },
         {
           label: "comparables-asc-basic-fallback",
-          baseQuery: buildKeywordOnlyQuery(keywords),
+          baseQuery: buildKeywordSortedQuery(keywords, "asc"),
+          fetchLimit: buildFallbackFetchLimit(candidateLimit),
+          transformResults: (results) =>
+            applyLocalResultTransform(results, {
+              filters,
+              sortDirection: "asc",
+              limit: candidateLimit,
+            }),
+        },
+        {
+          label: "comparables-asc-firestore-fallback",
+          baseQuery: buildFirestoreQuery(keywords, filters, { sortDirection: "asc" }),
           fetchLimit: buildFallbackFetchLimit(candidateLimit),
           transformResults: (results) =>
             applyLocalResultTransform(results, {

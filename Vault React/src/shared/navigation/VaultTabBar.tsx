@@ -7,10 +7,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, borders, spacing, textStyles } from "@src/shared/design-system/tokens";
 import { t } from "@src/shared/i18n/strings";
 
-const TAB_BAR_HEIGHT = 62;
-const TAB_BAR_TOP_PADDING = 12;
-const TAB_BAR_HORIZONTAL_PADDING = 21;
-const TAB_BAR_BOTTOM_PADDING = 21;
+export const TAB_BAR_HEIGHT = 62;
+export const TAB_BAR_TOP_PADDING = 12;
+export const TAB_BAR_HORIZONTAL_PADDING = 21;
+export const TAB_BAR_BOTTOM_PADDING = 21;
 
 export function getVaultTabBarHeight(bottomInset: number) {
   return TAB_BAR_TOP_PADDING + TAB_BAR_HEIGHT + Math.max(TAB_BAR_BOTTOM_PADDING, bottomInset);
@@ -77,8 +77,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: TAB_BAR_HORIZONTAL_PADDING,
     paddingTop: TAB_BAR_TOP_PADDING,
     justifyContent: "flex-end",
-    borderTopWidth: borders.hairline,
-    borderTopColor: colors.borderDefault,
     backgroundColor: colors.background,
   },
   pill: {

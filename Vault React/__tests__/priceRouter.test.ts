@@ -1,6 +1,8 @@
 const mockSafeLookup = jest.fn();
 const mockEstimateBullionValue = jest.fn();
 const mockLookupVinyl = jest.fn();
+const mockEbaySafeLookup = jest.fn();
+const mockConsumeEbayFailureReason = jest.fn();
 
 jest.mock("@/src/services/pricing/PCGSClient", () => ({
   pcgsClient: {
@@ -17,6 +19,13 @@ jest.mock("@/src/services/pricing/MetalsClient", () => ({
 jest.mock("@/src/services/pricing/DiscogsClient", () => ({
   discogsClient: {
     lookupVinyl: (...args: unknown[]) => mockLookupVinyl(...args),
+  },
+}));
+
+jest.mock("@/src/services/pricing/EBayClient", () => ({
+  ebayClient: {
+    safeLookup: (...args: unknown[]) => mockEbaySafeLookup(...args),
+    consumeLastFailureReason: () => mockConsumeEbayFailureReason(),
   },
 }));
 
@@ -51,6 +60,9 @@ describe("priceRouter", () => {
     mockSafeLookup.mockReset();
     mockEstimateBullionValue.mockReset();
     mockLookupVinyl.mockReset();
+    mockEbaySafeLookup.mockReset();
+    mockConsumeEbayFailureReason.mockReset();
+    mockConsumeEbayFailureReason.mockReturnValue(null);
   });
 
   it("returns PCGS pricing for coin identifications when PCGS lookup succeeds", async () => {
@@ -141,6 +153,9 @@ describe("priceRouter", () => {
   });
 
   it("falls back to AI estimate for antique/general items when Firestore confidence is weak", async () => {
+    mockEbaySafeLookup.mockResolvedValue(null);
+    mockConsumeEbayFailureReason.mockReturnValue("eBay OAuth request timed out after 12000ms");
+
     const { getPricingForItem } = require("@/src/services/pricing/priceRouter") as typeof import("@/src/services/pricing/priceRouter");
     const result = await getPricingForItem(
       makeIdentification({
@@ -166,6 +181,10 @@ describe("priceRouter", () => {
     expect(result.source).toBe("ai_estimate");
     expect(result.low).toBe(18);
     expect(result.high).toBe(35);
+    expect(mockEbaySafeLookup).toHaveBeenCalled();
+    expect(result.warnings).toContain(
+      "eBay lookup unavailable: eBay OAuth request timed out after 12000ms",
+    );
   });
 
   it("uses Discogs pricing for vinyl when a release match is found", async () => {
@@ -214,6 +233,7 @@ describe("priceRouter", () => {
 
   it("falls back to AI estimate for vinyl when Discogs returns null", async () => {
     mockLookupVinyl.mockResolvedValue(null);
+    mockEbaySafeLookup.mockResolvedValue(null);
 
     const { getPricingForItem } = require("@/src/services/pricing/priceRouter") as typeof import("@/src/services/pricing/priceRouter");
     const result = await getPricingForItem(
@@ -229,6 +249,50 @@ describe("priceRouter", () => {
     expect(result.source).toBe("ai_estimate");
     expect(result.low).toBe(22);
     expect(result.high).toBe(45);
+    expect(mockEbaySafeLookup).toHaveBeenCalled();
+  });
+
+  it("uses eBay pricing for antique/general items when Firestore is weak and eBay returns listings", async () => {
+    mockEbaySafeLookup.mockResolvedValue({
+      recommendedLow: 34,
+      recommendedHigh: 52,
+      confidenceLevel: "medium",
+      fetchedAt: "2026-04-08T00:00:00.000Z",
+      listings: [
+        {
+          itemId: "ebay-1",
+          title: "Carved dragon trinket box",
+          price: 44,
+          currency: "USD",
+          itemUrl: "https://www.ebay.com/itm/ebay-1",
+        },
+      ],
+    });
+
+    const { getPricingForItem } = require("@/src/services/pricing/priceRouter") as typeof import("@/src/services/pricing/priceRouter");
+    const result = await getPricingForItem(
+      makeIdentification({
+        category: "antique",
+        name: "Dragon Carving Box",
+        year: null,
+      }),
+      { low: 20, high: 40, confidence: 0.3 },
+      {
+        firestoreEstimate: {
+          low: 90,
+          high: 180,
+          currency: "USD",
+          confidence: 0.2,
+          valuationConfidence: 0.2,
+          source: "database",
+        },
+      },
+    );
+
+    expect(result.source).toBe("ebay");
+    expect(result.low).toBe(34);
+    expect(result.high).toBe(52);
+    expect(result.sourceLabel).toBe("eBay Active Listings");
   });
 
   it("uses bullion spot pricing when Gemini flags the coin as bullion and PCGS does not exceed melt-based value", async () => {

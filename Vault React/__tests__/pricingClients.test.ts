@@ -45,6 +45,7 @@ describe("pricing clients", () => {
         discogsToken: "discogs-token",
         metalsApiKey: "metals-key",
         pcgs: {
+          apiKey: "pcgs-api-key",
           username: "pcgs-user",
           password: "pcgs-pass",
           email: "pcgs@example.com",
@@ -80,6 +81,7 @@ describe("pricing clients", () => {
     expect(pricing?.byCondition["Good Plus (G+)"]?.value).toBe(210);
     expect(mockFetch.mock.calls[0][0]).toContain("/marketplace/price_suggestions/1577");
     expect(mockFetch.mock.calls[1][0]).toContain("/marketplace/stats/1577");
+    expect((mockFetch.mock.calls[0][1] as RequestInit).signal).toBeDefined();
 
     mockFetch
       .mockReset()
@@ -98,17 +100,12 @@ describe("pricing clients", () => {
     await expect(client.getPriceSuggestions(1578)).resolves.toBeNull();
   });
 
-  it("caches PCGS tokens and retries once on 401 before succeeding", async () => {
+  it("uses PCGS bearer api key and retries grade lookup without legacy auth endpoints", async () => {
     mockConfig();
     const { PCGSClient } = require("@/src/services/pricing/PCGSClient") as typeof import("@/src/services/pricing/PCGSClient");
     const client = new PCGSClient();
 
     mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ token: "token-1" }),
-      })
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -117,57 +114,53 @@ describe("pricing clients", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ token: "token-2" }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
         json: async () => ({
-          Results: [
-            {
-              PCGSNo: 7296,
-              Name: "1921-S Morgan Dollar",
-              Denomination: "Morgan Dollar",
-              Year: 1921,
-              MintMark: "S",
-              PriceGuideValues: { F12: 35, VF20: 45, MS63: 95 },
-            },
-          ],
+          PCGSNo: 7296,
+          Name: "1921-S Morgan Dollar",
+          Denomination: "Morgan Dollar",
+          Year: 1921,
+          MintMark: "S",
+          Grade: "F12",
+          PriceGuideValue: 35,
         }),
       })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({
-          Results: [
-            {
-              PCGSNo: 7300,
-              Name: "1922 Peace Dollar",
-              Denomination: "Peace Dollar",
-              Year: 1922,
-              MintMark: "",
-              PriceGuideValues: { F12: 30, VF20: 40, MS63: 80 },
-            },
-          ],
+          PCGSNo: 7300,
+          Name: "1922 Peace Dollar",
+          Denomination: "Peace Dollar",
+          Year: 1922,
+          MintMark: "",
+          Grade: "VF20",
+          PriceGuideValue: 40,
         }),
       });
 
     const first = await client.lookupCoin({
-      year: 1921,
-      denomination: "Morgan Dollar",
-      mintMark: "S",
+      pcgsNo: "7296",
+      gradeNo: 12,
+      plusGrade: false,
     });
     const second = await client.lookupCoin({
-      year: 1922,
-      denomination: "Peace Dollar",
+      pcgsNo: "7300",
+      gradeNo: 20,
+      plusGrade: false,
     });
 
     expect(first?.coinName).toContain("1921-S Morgan Dollar");
     expect(second?.coinName).toContain("1922 Peace Dollar");
-    expect(mockFetch.mock.calls[0][0]).toContain("/account/authenticate");
-    expect(mockFetch.mock.calls[2][0]).toContain("/account/authenticate");
-    expect(mockFetch.mock.calls[4][0]).toContain("/coindetail/GetCoinFactsListing");
-    expect(mockFetch).toHaveBeenCalledTimes(5);
+    expect(String(mockFetch.mock.calls[0][0])).toContain("/coindetail/GetCoinFactsByGrade");
+    expect(String(mockFetch.mock.calls[0][0])).not.toContain("/account/authenticate");
+    expect(String(mockFetch.mock.calls[0][0])).not.toContain("/coindetail/GetCoinFactsListing");
+    expect((mockFetch.mock.calls[0][1] as RequestInit).headers).toEqual(
+      expect.objectContaining({
+        Authorization: "Bearer pcgs-api-key",
+      }),
+    );
+    expect((mockFetch.mock.calls[0][1] as RequestInit).signal).toBeDefined();
+    expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
   it("caches metal spot prices for one hour under metals_spot_prices", async () => {
@@ -179,11 +172,12 @@ describe("pricing clients", () => {
       ok: true,
       status: 200,
       json: async () => ({
+        success: true,
         rates: {
-          XAU: 0.00045,
-          XAG: 0.032,
-          XPT: 0.0009,
-          XPD: 0.0007,
+          USDXAU: 2250.5,
+          USDXAG: 28.25,
+          USDXPT: 1010.3,
+          USDXPD: 998.9,
         },
         timestamp: 1_774_000_000,
       }),
@@ -196,6 +190,10 @@ describe("pricing clients", () => {
     expect(first.XAG).toBeGreaterThan(0);
     expect(second).toEqual(first);
     expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(String(mockFetch.mock.calls[0][0])).toContain("api.metalpriceapi.com/v1/latest");
+    expect(String(mockFetch.mock.calls[0][0])).toContain("api_key=metals-key");
+    expect(String(mockFetch.mock.calls[0][0])).toContain("currencies=EUR%2CXAU%2CXAG%2CXPT%2CXPD");
+    expect((mockFetch.mock.calls[0][1] as RequestInit).signal).toBeDefined();
     expect(cachedRaw).toContain("XAU");
   });
 });

@@ -1,6 +1,6 @@
 import React from "react";
 import { act, render, waitFor, within } from "@testing-library/react-native";
-import { Animated } from "react-native";
+import { Alert, Animated } from "react-native";
 
 const mockReplace = jest.fn();
 const mockBack = jest.fn();
@@ -20,9 +20,14 @@ const mockProgressUpdates = [
     },
   },
 ];
+let throwAfterUpdates: Error | null = null;
 const mockScanProcess = jest.fn(async function* () {
   for (const update of mockProgressUpdates) {
     yield update;
+  }
+
+  if (throwAfterUpdates) {
+    throw throwAfterUpdates;
   }
 });
 const mockAppState = {
@@ -75,6 +80,7 @@ describe("ProcessingScreen", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    throwAfterUpdates = null;
     mockProgressUpdates.splice(
       0,
       mockProgressUpdates.length,
@@ -105,7 +111,7 @@ describe("ProcessingScreen", () => {
     animatedLoopSpy.mockRestore();
   });
 
-  it("renders the active source detail inline with the active step", async () => {
+  it("renders each source as its own one-line row with status", async () => {
     const { ProcessingScreen } = require("@src/features/scan/ProcessingScreen") as typeof import("@src/features/scan/ProcessingScreen");
     const screen = render(<ProcessingScreen />);
 
@@ -118,15 +124,14 @@ describe("ProcessingScreen", () => {
       expect(mockScanProcess).toHaveBeenCalled();
     });
 
-    expect(await screen.findByText("PCGS PRICE GUIDE")).toBeTruthy();
-    expect(await screen.findByText("Checking PCGS price guide")).toBeTruthy();
-    expect(screen.queryByTestId("processing.sourcesLine")).toBeNull();
-    expect(screen.getByTestId("processing.step.priceLookup")).toContainElement(
-      screen.getByText("Checking PCGS price guide"),
-    );
+    expect(await screen.findByText("Object Recognition")).toBeTruthy();
+    expect(await screen.findByText("PCGS CoinFacts")).toBeTruthy();
+    expect(screen.queryByText("Checking PCGS price guide")).toBeNull();
+    expect(within(screen.getByTestId("processing.step.objectRecognition")).getByText("DONE")).toBeTruthy();
+    expect(within(screen.getByTestId("processing.step.pcgs")).getByText("IN PROGRESS")).toBeTruthy();
   });
 
-  it("shows final estimate and save provider copy inside the value estimate row", async () => {
+  it("shows final estimate and saving as separate rows", async () => {
     mockProgressUpdates.splice(
       0,
       mockProgressUpdates.length,
@@ -166,26 +171,35 @@ describe("ProcessingScreen", () => {
       expect(mockScanProcess).toHaveBeenCalled();
     });
 
-    expect(await screen.findByText("FIREBASE SAVE")).toBeTruthy();
-    expect(await screen.findByText("Saving scan result")).toBeTruthy();
-    expect(screen.getByTestId("processing.step.valueEstimate")).toContainElement(
-      screen.getByText("Saving scan result"),
-    );
-    expect(screen.queryAllByText("Saving scan result")).toHaveLength(1);
+    expect(await screen.findByText("Value Estimate")).toBeTruthy();
+    expect(await screen.findByText("Result Storage")).toBeTruthy();
+    expect(screen.queryByText("Saving scan result")).toBeNull();
+    expect(within(screen.getByTestId("processing.step.valueEstimate")).getByText("DONE")).toBeTruthy();
+    expect(within(screen.getByTestId("processing.step.saving")).getByText("IN PROGRESS")).toBeTruthy();
   });
 
-  it("marks historical records complete once the flow advances into value estimate", async () => {
+  it("keeps source rows in execution order and only one row active", async () => {
     mockProgressUpdates.splice(
       0,
       mockProgressUpdates.length,
       {
-        stage: "historicalRecords",
-        progress: 1,
-        currentSearchSource: "Building final estimate",
+        stage: "priceLookup",
+        progress: 0.45,
+        currentSearchSource: "Checking eBay active listings",
         lookupProgress: {
-          sourceKey: "marketplace",
-          sourceLabel: "Marketplace search",
-          message: "Building final estimate",
+          sourceKey: "ebay",
+          sourceLabel: "eBay Active Listings",
+          message: "Checking eBay active listings",
+        },
+      },
+      {
+        stage: "priceLookup",
+        progress: 0.62,
+        currentSearchSource: "Checking PCGS price guide",
+        lookupProgress: {
+          sourceKey: "pcgs",
+          sourceLabel: "PCGS Price Guide",
+          message: "Checking PCGS price guide",
         },
       },
     );
@@ -197,14 +211,57 @@ describe("ProcessingScreen", () => {
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
+      await Promise.resolve();
     });
 
     await waitFor(() => {
       expect(mockScanProcess).toHaveBeenCalled();
     });
 
-    expect(within(screen.getByTestId("processing.step.historicalRecords")).getByText("DONE")).toBeTruthy();
-    expect(within(screen.getByTestId("processing.step.valueEstimate")).getByText("IN PROGRESS")).toBeTruthy();
-    expect(screen.queryAllByText("Building final estimate")).toHaveLength(1);
+    expect(within(screen.getByTestId("processing.step.objectRecognition")).getByText("DONE")).toBeTruthy();
+    expect(within(screen.getByTestId("processing.step.ebay")).getByText("DONE")).toBeTruthy();
+    expect(within(screen.getByTestId("processing.step.pcgs")).getByText("IN PROGRESS")).toBeTruthy();
+    expect(screen.queryAllByText("IN PROGRESS")).toHaveLength(1);
+  });
+
+  it("marks the current source row as error on failure", async () => {
+    const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    throwAfterUpdates = new Error("Remote pipeline failed");
+    mockProgressUpdates.splice(
+      0,
+      mockProgressUpdates.length,
+      {
+        stage: "historicalRecords",
+        progress: 0.4,
+        currentSearchSource: "Cross-checking auction records",
+        lookupProgress: {
+          sourceKey: "auction_records",
+          sourceLabel: "Auction records",
+          message: "Cross-checking auction records",
+        },
+      },
+    );
+
+    const { ProcessingScreen } =
+      require("@src/features/scan/ProcessingScreen") as typeof import("@src/features/scan/ProcessingScreen");
+    const screen = render(<ProcessingScreen />);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalled();
+    });
+
+    const alertMessage = String(alertSpy.mock.calls[0]?.[1] ?? "");
+    expect(alertMessage).toContain("Last step: Auction Records");
+    expect(alertMessage).toContain("Cross-checking auction records");
+    expect(within(screen.getByTestId("processing.step.auction_records")).getByText("ERROR")).toBeTruthy();
+    expect(screen.queryAllByText("IN PROGRESS")).toHaveLength(0);
+
+    alertSpy.mockRestore();
   });
 });

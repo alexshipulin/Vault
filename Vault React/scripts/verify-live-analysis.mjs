@@ -20,7 +20,9 @@ const { getFirestore } = require(firebaseAdminFirestorePath);
 
 const PCGS_API_BASE = "https://api.pcgs.com/publicapi";
 const DISCOGS_API_BASE = "https://api.discogs.com";
-const METALS_API_BASES = ["https://metals-api.com/api", "https://api.metals-api.com/api"];
+const METALS_API_BASE = "https://api.metalpriceapi.com/v1";
+const EBAY_OAUTH_URL = "https://api.ebay.com/identity/v1/oauth2/token";
+const EBAY_BROWSE_API_BASE = "https://api.ebay.com/buy/browse/v1";
 const DISCOGS_USER_AGENT = "VaultScope/1.0 +https://vaultscope.app";
 
 function parseDotEnv(raw) {
@@ -97,6 +99,10 @@ function normalizeKeywords(text) {
         .filter((keyword) => !stopWords.has(keyword)),
     ),
   ).slice(0, 10);
+}
+
+function toBase64Ascii(value) {
+  return Buffer.from(value, "utf8").toString("base64");
 }
 
 async function runCheck(label, probe, { critical = false } = {}) {
@@ -211,74 +217,32 @@ async function probeFirestoreComparables(db) {
 }
 
 async function probePcgs(env) {
-  if (!env.PCGS_USERNAME || !env.PCGS_PASSWORD) {
-    throw new Error("Missing PCGS_USERNAME or PCGS_PASSWORD");
+  const apiToken = env.PCGS_API_KEY || (env.PCGS_EMAIL && env.PCGS_PASSWORD ? `${env.PCGS_EMAIL}:${env.PCGS_PASSWORD}` : null);
+  if (!apiToken) {
+    throw new Error("Missing PCGS_API_KEY (or fallback PCGS_EMAIL + PCGS_PASSWORD)");
   }
 
-  const swaggerResponse = await fetch(`${PCGS_API_BASE}/swagger/docs/v1`);
-  if (!swaggerResponse.ok) {
-    throw new Error(`PCGS swagger unavailable (${swaggerResponse.status})`);
-  }
-
-  const swaggerText = await swaggerResponse.text();
-  const exposesAuthEndpoint = swaggerText.includes("/account/authenticate");
-
-  const authResponse = await fetch(`${PCGS_API_BASE}/account/authenticate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      userName: env.PCGS_USERNAME,
-      password: env.PCGS_PASSWORD,
-    }),
-  });
-
-  if (authResponse.status === 404) {
-    throw new Error(
-      `PCGS auth endpoint returned 404. Swagger docs do not expose /account/authenticate (${exposesAuthEndpoint ? "found" : "not found"} in swagger). Current username/password auth flow is not live-verifiable.`,
-    );
-  }
-
-  if (!authResponse.ok) {
-    throw new Error(`PCGS auth failed (${authResponse.status}): ${truncate(await authResponse.text())}`);
-  }
-
-  const authBody = await authResponse.json();
-  const token = authBody?.token ?? authBody?.Token ?? authBody?.accessToken;
-
-  if (!token) {
-    throw new Error("PCGS auth succeeded but returned no token.");
-  }
-
-  const listingUrl = new URL(`${PCGS_API_BASE}/coindetail/GetCoinFactsListing`);
-  listingUrl.searchParams.set("coinYear", "1921");
-  listingUrl.searchParams.set("denomination", "Morgan Dollar");
-  listingUrl.searchParams.set("mintMark", "S");
-
-  const listingResponse = await fetch(listingUrl, {
+  const gradeProbeUrl = new URL(`${PCGS_API_BASE}/coindetail/GetCoinFactsByGrade`);
+  gradeProbeUrl.searchParams.set("PCGSNo", "7296");
+  gradeProbeUrl.searchParams.set("GradeNo", "12");
+  gradeProbeUrl.searchParams.set("PlusGrade", "false");
+  const response = await fetch(gradeProbeUrl, {
     headers: {
       Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-      token,
+      Authorization: `Bearer ${apiToken}`,
     },
   });
 
-  if (!listingResponse.ok) {
-    throw new Error(`PCGS listing failed (${listingResponse.status}): ${truncate(await listingResponse.text())}`);
+  if (!response.ok) {
+    throw new Error(`PCGS grade probe failed (${response.status}): ${truncate(await response.text())}`);
   }
 
-  const listingBody = await listingResponse.json();
-  const raw = Array.isArray(listingBody)
-    ? listingBody
-    : Array.isArray(listingBody?.Coins)
-      ? listingBody.Coins
-      : Array.isArray(listingBody?.Results)
-        ? listingBody.Results
-        : [];
+  const body = await response.json();
+  if (body?.IsValidRequest === false) {
+    throw new Error(`PCGS probe responded with invalid request: ${body?.ServerMessage ?? "unknown"}`);
+  }
 
-  return `token ok, sample listing candidates=${raw.length}`;
+  return `grade probe ok pcgsNo=${body?.PCGSNo ?? "unknown"} name=${body?.Name ?? "unknown"}`;
 }
 
 async function probeDiscogs(env) {
@@ -346,39 +310,105 @@ async function probeMetals(env) {
     throw new Error("Missing METALS_API_KEY");
   }
 
-  const attempts = [];
+  const url = new URL(`${METALS_API_BASE}/latest`);
+  url.searchParams.set("api_key", env.METALS_API_KEY);
+  url.searchParams.set("base", "USD");
+  url.searchParams.set("currencies", "EUR,XAU,XAG,XPT,XPD");
 
-  for (const baseUrl of METALS_API_BASES) {
-    const url = new URL(`${baseUrl}/latest`);
-    url.searchParams.set("access_key", env.METALS_API_KEY);
-    url.searchParams.set("base", "USD");
-    url.searchParams.set("symbols", "XAU,XAG,XPT,XPD");
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+    },
+  });
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        attempts.push(`${baseUrl} -> ${response.status}`);
-        continue;
-      }
-
-      const body = await response.json();
-      if (!body?.rates?.XAU || !body?.rates?.XAG) {
-        attempts.push(`${baseUrl} -> missing rates`);
-        continue;
-      }
-
-      return `${baseUrl} ok XAU=${body.rates.XAU} XAG=${body.rates.XAG}`;
-    } catch (error) {
-      attempts.push(`${baseUrl} -> ${truncate(summarizeError(error), 80)}`);
-    }
+  if (!response.ok) {
+    throw new Error(`Metals probe failed (${response.status}): ${truncate(await response.text())}`);
   }
 
-  throw new Error(`Metals probe failed across all base URLs: ${attempts.join(" | ")}`);
+  const body = await response.json();
+  if (body?.success === false) {
+    throw new Error(`Metals probe returned success=false: ${body?.error?.message ?? body?.error?.code ?? "unknown error"}`);
+  }
+
+  const rates = body?.rates ?? {};
+  const xau = typeof rates?.USDXAU === "number" ? rates.USDXAU : typeof rates?.XAU === "number" ? 1 / rates.XAU : null;
+  const xag = typeof rates?.USDXAG === "number" ? rates.USDXAG : typeof rates?.XAG === "number" ? 1 / rates.XAG : null;
+
+  if (!(xau > 0) || !(xag > 0)) {
+    throw new Error("Metals probe response is missing USDXAU/USDXAG rates.");
+  }
+
+  return `metalpriceapi ok XAU=${xau.toFixed(2)} XAG=${xag.toFixed(2)}`;
+}
+
+async function probeEbay(env) {
+  const clientId = env.EBAY_CLIENT_ID;
+  const clientSecret = env.EBAY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error("Missing EBAY_CLIENT_ID or EBAY_CLIENT_SECRET");
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 10_000);
+
+  let token = null;
+
+  try {
+    const tokenResponse = await fetch(EBAY_OAUTH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${toBase64Ascii(`${clientId}:${clientSecret}`)}`,
+      },
+      body: `grant_type=client_credentials&scope=${encodeURIComponent("https://api.ebay.com/oauth/api_scope")}`,
+      signal: controller.signal,
+    });
+
+    const tokenText = await tokenResponse.text();
+    if (!tokenResponse.ok) {
+      if (tokenResponse.status === 401 && /invalid_client/i.test(tokenText)) {
+        throw new Error(
+          "eBay OAuth failed (401 invalid_client). Verify EBAY_CLIENT_ID and EBAY_CLIENT_SECRET are active production credentials for the same eBay app.",
+        );
+      }
+      throw new Error(`eBay OAuth failed (${tokenResponse.status}): ${truncate(tokenText)}`);
+    }
+
+    token = JSON.parse(tokenText)?.access_token ?? null;
+    if (!token) {
+      throw new Error("eBay OAuth succeeded but access token was missing.");
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("eBay OAuth probe timed out after 10000ms");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const searchUrl = new URL(`${EBAY_BROWSE_API_BASE}/item_summary/search`);
+  searchUrl.searchParams.set("q", "dragon carving box");
+  searchUrl.searchParams.set("limit", "3");
+  searchUrl.searchParams.set("filter", "buyingOptions:{FIXED_PRICE|AUCTION},itemLocationCountry:US");
+
+  const searchResponse = await fetch(searchUrl, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+    },
+  });
+
+  const searchText = await searchResponse.text();
+  if (!searchResponse.ok) {
+    throw new Error(`eBay browse probe failed (${searchResponse.status}): ${truncate(searchText)}`);
+  }
+
+  const parsed = JSON.parse(searchText);
+  const count = Array.isArray(parsed?.itemSummaries) ? parsed.itemSummaries.length : 0;
+  return `oauth ok + browse ok (${count} listing(s) returned for probe query)`;
 }
 
 async function probeFirebasePersistence(db) {
@@ -413,6 +443,40 @@ async function probeFirebasePersistence(db) {
   return `scan_results write/read/delete ok (${probeId})`;
 }
 
+async function probeFirebaseAnonymousAuth(env) {
+  const apiKey = env.EXPO_PUBLIC_FIREBASE_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing EXPO_PUBLIC_FIREBASE_API_KEY");
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        returnSecureToken: true,
+      }),
+    },
+  );
+
+  const text = await response.text();
+  if (!response.ok) {
+    if (/CONFIGURATION_NOT_FOUND/i.test(text)) {
+      throw new Error(
+        "Anonymous auth is not configured for this Firebase project. Enable Authentication > Sign-in method > Anonymous.",
+      );
+    }
+    throw new Error(`Anonymous auth probe failed (${response.status}): ${truncate(text)}`);
+  }
+
+  const parsed = JSON.parse(text);
+  const localId = parsed?.localId;
+  return `anonymous auth signUp ok (uid=${localId ?? "unknown"})`;
+}
+
 function formatRow(row) {
   const label = row.label.padEnd(24, " ");
   const status = row.status.padEnd(4, " ");
@@ -430,6 +494,8 @@ async function main() {
   rows.push(await runCheck("PCGS", () => probePcgs(env)));
   rows.push(await runCheck("Discogs", () => probeDiscogs(env)));
   rows.push(await runCheck("Metals", () => probeMetals(env)));
+  rows.push(await runCheck("eBay marketplace", () => probeEbay(env)));
+  rows.push(await runCheck("Firebase anonymous auth", () => probeFirebaseAnonymousAuth(env)));
   rows.push(await runCheck("Firebase persistence", () => probeFirebasePersistence(db), { critical: true }));
 
   console.log("VaultScope live analysis verification");

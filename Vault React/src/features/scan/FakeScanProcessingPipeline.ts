@@ -7,6 +7,7 @@ import type {
 } from "@src/domain/models";
 import type { ScanProgressUpdate } from "@src/domain/services";
 import { t } from "@src/shared/i18n/strings";
+import type { ScanLookupProgress } from "@/lib/scan/types";
 
 const STAGES: ProcessingStageKind[] = [
   "objectRecognition",
@@ -26,6 +27,20 @@ const MYSTERY_SOURCES = [
   t("processing.detail.marketplace"),
   t("processing.detail.auction_records"),
   t("processing.detail.final_estimate"),
+];
+
+const STANDARD_LOOKUP_KEYS: ScanLookupProgress["sourceKey"][] = [
+  "gemini",
+  "condition",
+  "pcgs",
+  "final_estimate",
+];
+
+const MYSTERY_LOOKUP_KEYS: ScanLookupProgress["sourceKey"][] = [
+  "gemini",
+  "condition",
+  "marketplace",
+  "auction_records",
 ];
 
 function sleep(ms: number): Promise<void> {
@@ -54,6 +69,7 @@ export class FakeScanProcessingPipeline implements ScanProcessingPipeline {
 
   async *process(session: TemporaryScanSession): AsyncGenerator<LegacyCompatibleScanProgressUpdate, void, unknown> {
     const sources = session.mode === "mystery" ? MYSTERY_SOURCES : STANDARD_SOURCES;
+    const lookupKeys = session.mode === "mystery" ? MYSTERY_LOOKUP_KEYS : STANDARD_LOOKUP_KEYS;
     const completedIndexes = new Set<number>();
     const pendingSnapshots = buildSnapshots(STAGES, null, completedIndexes);
 
@@ -66,7 +82,12 @@ export class FakeScanProcessingPipeline implements ScanProcessingPipeline {
       stage: STAGES[0],
       progress: 0,
       currentSearchSource: sources[0],
-      searchingSource: sources[0]
+      searchingSource: sources[0],
+      lookupProgress: {
+        sourceKey: lookupKeys[0],
+        sourceLabel: sources[0],
+        message: sources[0],
+      }
     };
 
     for (let index = 0; index < STAGES.length; index += 1) {
@@ -78,7 +99,12 @@ export class FakeScanProcessingPipeline implements ScanProcessingPipeline {
         progress: index / STAGES.length,
         currentSearchSource,
         snapshots: activeSnapshots,
-        searchingSource: currentSearchSource
+        searchingSource: currentSearchSource,
+        lookupProgress: {
+          sourceKey: lookupKeys[index],
+          sourceLabel: currentSearchSource,
+          message: currentSearchSource,
+        }
       };
 
       await sleep(this.stageDelayMs);

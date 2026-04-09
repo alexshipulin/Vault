@@ -98,6 +98,10 @@ const LOOKUP_PROGRESS: Record<ScanLookupProgress["sourceKey"], { sourceLabel: st
     sourceLabel: "Discogs Marketplace",
     message: t("processing.detail.discogs"),
   },
+  ebay: {
+    sourceLabel: "eBay Active Listings",
+    message: t("processing.detail.ebay"),
+  },
   metals: {
     sourceLabel: "Metals API",
     message: t("processing.detail.metals"),
@@ -263,6 +267,23 @@ function appendUniqueWarning(
   }
 
   return nextWarnings;
+}
+
+function isFirebasePermissionError(error: unknown): boolean {
+  if (typeof error !== "object" || error == null) {
+    return false;
+  }
+
+  const maybeCode = "code" in error ? (error as { code?: unknown }).code : undefined;
+  if (maybeCode === "permission-denied") {
+    return true;
+  }
+
+  if (error instanceof Error) {
+    return error.message.toLowerCase().includes("permission-denied");
+  }
+
+  return false;
 }
 
 function scoreComparableRelevance(
@@ -711,7 +732,7 @@ function buildMysterySourceLabel(
       ? "AI-led conservative estimate cross-checked against market databases."
       : "Database-supported estimate filtered for mystery mode.";
 
-  return `${prefix} Checked sources: ${sourceSummary}. Ceiling applied at $${ceiling}.${assessment.warnings.length ? ` Checks: ${assessment.warnings.join(" ")}` : ""}`;
+  return `${prefix} Checked sources: ${sourceSummary}. Ceiling applied at $${ceiling}.`;
 }
 
 function mergeMysteryEstimates(
@@ -1044,18 +1065,25 @@ function finalizeMysteryPriceEstimate(
   assessment: ValuationAssessment,
   databasePriceEstimate: PriceEstimate,
   aiFallbackPriceEstimate: PriceEstimate | null,
+  routedFallbackEstimate: PriceEstimate | null = null,
 ): PriceEstimate {
   const ceiling = determineMysteryValueCeiling(identification, assessment);
   const databaseClamped = clampEstimateToCeiling(databasePriceEstimate, ceiling);
   const aiClamped = clampEstimateToCeiling(aiFallbackPriceEstimate, ceiling);
+  const routedClamped = clampEstimateToCeiling(routedFallbackEstimate, ceiling);
+  const routedWarnings = routedClamped?.valuationWarnings ?? [];
+  const mergeWarnings = (warnings: string[] | undefined): string[] =>
+    Array.from(new Set([...(warnings ?? []), ...routedWarnings]));
   const hasDatabaseEstimate = hasNumericEstimate(databaseClamped);
   const hasAiEstimate = hasNumericEstimate(aiClamped);
+  const hasRoutedEstimate = hasNumericEstimate(routedClamped);
 
-  if (!hasDatabaseEstimate && !hasAiEstimate) {
+  if (!hasDatabaseEstimate && !hasAiEstimate && !hasRoutedEstimate) {
     return {
       ...buildSuppressedDatabaseEstimate(assessment, "mystery"),
       sourceLabel: buildMysterySourceLabel("database", assessment, ceiling),
       appliedValueCeiling: ceiling,
+      valuationWarnings: mergeWarnings(assessment.warnings),
     };
   }
 
@@ -1064,6 +1092,26 @@ function finalizeMysteryPriceEstimate(
       ...databaseClamped!,
       source: "database",
       sourceLabel: buildMysterySourceLabel("database", assessment, ceiling),
+      appliedValueCeiling: ceiling,
+      valuationWarnings: mergeWarnings(databaseClamped?.valuationWarnings),
+    };
+  }
+
+  if (hasRoutedEstimate && routedClamped?.source === "ebay") {
+    const matchedSources = routedClamped.matchedSources?.length
+      ? routedClamped.matchedSources
+      : Array.from(new Set([...assessment.matchedSources, "ebay"]));
+    return {
+      ...routedClamped,
+      source: "ebay",
+      sourceLabel: routedClamped.sourceLabel ?? "eBay active listings (mystery mode).",
+      matchedSources,
+      comparableCount: routedClamped.comparableCount ?? assessment.comparableCount,
+      needsReview: true,
+      valuationWarnings: mergeWarnings(assessment.warnings),
+      valuationMode: "mystery",
+      evidenceStrength: assessment.evidenceStrength,
+      sourceBreakdown: assessment.sourceBreakdown,
       appliedValueCeiling: ceiling,
     };
   }
@@ -1075,6 +1123,7 @@ function finalizeMysteryPriceEstimate(
         source: "ai_estimate",
         sourceLabel: buildMysterySourceLabel("ai_estimate", assessment, ceiling),
         appliedValueCeiling: ceiling,
+        valuationWarnings: mergeWarnings(aiClamped?.valuationWarnings),
       };
     }
 
@@ -1083,6 +1132,7 @@ function finalizeMysteryPriceEstimate(
       return {
         ...merged,
         appliedValueCeiling: ceiling,
+        valuationWarnings: mergeWarnings(merged.valuationWarnings),
       };
     }
   }
@@ -1092,6 +1142,7 @@ function finalizeMysteryPriceEstimate(
     source: "database",
     sourceLabel: buildMysterySourceLabel("database", assessment, ceiling),
     appliedValueCeiling: ceiling,
+    valuationWarnings: mergeWarnings(databaseClamped?.valuationWarnings),
   };
 }
 
@@ -1123,9 +1174,10 @@ function buildRoutedStandardPriceEstimate(
   routedPriceResult: {
     low: number | null;
     high: number | null;
-    source: "pcgs" | "discogs" | "metals" | "firestore" | "ai_estimate";
+    source: "pcgs" | "discogs" | "metals" | "firestore" | "ai_estimate" | "ebay";
     sourceLabel: string;
     confidenceLevel: "high" | "medium" | "low";
+    warnings?: string[];
   },
   identification: GeminiIdentifyResponse,
   databasePriceEstimate: PriceEstimate,
@@ -1167,6 +1219,8 @@ function buildRoutedStandardPriceEstimate(
         ? "pcgs"
         : routedPriceResult.source === "discogs"
           ? "discogs"
+          : routedPriceResult.source === "ebay"
+            ? "ebay"
           : routedPriceResult.source === "metals"
             ? "metals"
           : "ai_estimate";
@@ -1185,12 +1239,80 @@ function buildRoutedStandardPriceEstimate(
       source === "ai_estimate"
         ? referenceEstimate?.needsReview ?? true
         : referenceEstimate?.needsReview ?? false,
-    valuationWarnings: referenceEstimate?.valuationWarnings ?? valuationAssessment.warnings,
+    valuationWarnings: Array.from(
+      new Set([
+        ...(referenceEstimate?.valuationWarnings ?? valuationAssessment.warnings ?? []),
+        ...(routedPriceResult.warnings ?? []),
+      ]),
+    ),
     valuationMode: "standard",
     evidenceStrength: referenceEstimate?.evidenceStrength ?? valuationAssessment.evidenceStrength,
     appliedValueCeiling: referenceEstimate?.appliedValueCeiling ?? null,
     sourceBreakdown: referenceEstimate?.sourceBreakdown ?? valuationAssessment.sourceBreakdown,
   };
+}
+
+function buildRoutedMysteryFallbackEstimate(
+  routedPriceResult: {
+    low: number | null;
+    high: number | null;
+    source: "pcgs" | "discogs" | "metals" | "firestore" | "ai_estimate" | "ebay";
+    sourceLabel: string;
+    confidenceLevel: "high" | "medium" | "low";
+    warnings?: string[];
+  },
+  identification: GeminiIdentifyResponse,
+  databasePriceEstimate: PriceEstimate,
+  aiPriceEstimate: PriceEstimate | null,
+  valuationAssessment: ValuationAssessment,
+): PriceEstimate | null {
+  if (routedPriceResult.source !== "ebay") {
+    return null;
+  }
+
+  const routedEstimate = buildRoutedStandardPriceEstimate(
+    routedPriceResult,
+    identification,
+    databasePriceEstimate,
+    aiPriceEstimate,
+    valuationAssessment,
+  );
+
+  if (!hasNumericEstimate(routedEstimate)) {
+    return null;
+  }
+
+  const mergedWarnings = Array.from(
+    new Set([...(valuationAssessment.warnings ?? []), ...(routedPriceResult.warnings ?? [])]),
+  );
+  const baseConfidence = Math.min(
+    0.45,
+    Math.max(0, Math.min(1, routedEstimate.valuationConfidence ?? routedEstimate.confidence ?? 0.35)),
+  );
+  const warningPenalty = Math.min(0.15, mergedWarnings.length * 0.03);
+  const evidencePenalty =
+    valuationAssessment.evidenceStrength === "weak"
+      ? 0.08
+      : valuationAssessment.evidenceStrength === "moderate"
+        ? 0.04
+        : 0;
+  const conservativeConfidence = Math.max(0.18, baseConfidence - warningPenalty - evidencePenalty);
+
+  const mysteryRoutedEstimate: PriceEstimate = {
+    ...routedEstimate,
+    confidence: conservativeConfidence,
+    valuationConfidence: conservativeConfidence,
+    source: "ebay",
+    matchedSources: Array.from(new Set([...(routedEstimate.matchedSources ?? []), "ebay"])),
+    comparableCount: routedEstimate.comparableCount ?? valuationAssessment.comparableCount,
+    needsReview: true,
+    valuationWarnings: mergedWarnings,
+    valuationMode: "mystery",
+    evidenceStrength: valuationAssessment.evidenceStrength,
+    sourceBreakdown: valuationAssessment.sourceBreakdown,
+  };
+
+  return tightenMysteryFallbackEstimate(mysteryRoutedEstimate, valuationAssessment);
 }
 
 export class ScanPipeline {
@@ -1308,7 +1430,7 @@ export class ScanPipeline {
           `category filter=${searchCategory ?? "none"}`,
         ],
       });
-      const rawComparableAuctions = await performanceMonitor.measureAsync(
+      let rawComparableAuctions = await performanceMonitor.measureAsync(
         "scan.find-prices",
         () =>
           this.searchEngine.searchComparableAuctions(
@@ -1321,6 +1443,27 @@ export class ScanPipeline {
           appraisalMode,
         },
       );
+      if (rawComparableAuctions.length === 0 && searchCategory) {
+        logBuilder.add(
+          "request",
+          "Marketplace comparable search",
+          "No category-matched comparables were found, so the search retried without a category filter.",
+          {
+            details: [
+              `retry keywords=${comparableQueryKeywords.join(", ") || "none"}`,
+              "retry category filter=none",
+            ],
+          },
+        );
+        rawComparableAuctions = await performanceMonitor.measureAsync(
+          "scan.find-prices.unfiltered-fallback",
+          () => this.searchEngine.searchComparableAuctions(comparableQueryKeywords, {}, 16),
+          {
+            category: "unfiltered-fallback",
+            appraisalMode,
+          },
+        );
+      }
       const rankedComparableAuctions = filterComparableOutliers(
         rankComparableAuctions(rawComparableAuctions, identification, category, appraisalMode).slice(0, 12),
       );
@@ -1355,6 +1498,41 @@ export class ScanPipeline {
         valuationAssessment,
         appraisalMode,
       );
+      const routedPriceResult = await getPricingForItem(
+        identification,
+        {
+          low: aiFallbackPriceEstimate?.low ?? identification.estimatedValueLow ?? null,
+          high: aiFallbackPriceEstimate?.high ?? identification.estimatedValueHigh ?? null,
+          confidence:
+            aiFallbackPriceEstimate?.valuationConfidence ??
+            aiFallbackPriceEstimate?.confidence ??
+            identification.pricingConfidence ??
+            identification.valuationConfidence ??
+            identification.confidence,
+        },
+        {
+          firestoreEstimate: databasePriceEstimate,
+          onProgress: (event) => {
+            this.emitProgress(
+              "pricing",
+              "active",
+              buildLookupProgress(event.sourceKey, event.message),
+            );
+          },
+          onLog: (event) => {
+            logBuilder.add(event.kind, event.title, event.message, {
+              details: event.details,
+            });
+          },
+        },
+      );
+      const routedMysteryFallbackEstimate = buildRoutedMysteryFallbackEstimate(
+        routedPriceResult,
+        identification,
+        databasePriceEstimate,
+        aiFallbackPriceEstimate,
+        valuationAssessment,
+      );
       const priceEstimate =
         appraisalMode === "mystery"
           ? finalizeMysteryPriceEstimate(
@@ -1362,36 +1540,10 @@ export class ScanPipeline {
               valuationAssessment,
               databasePriceEstimate,
               aiFallbackPriceEstimate,
+              routedMysteryFallbackEstimate,
             )
           : buildRoutedStandardPriceEstimate(
-              await getPricingForItem(
-                identification,
-                {
-                  low: aiFallbackPriceEstimate?.low ?? identification.estimatedValueLow ?? null,
-                  high: aiFallbackPriceEstimate?.high ?? identification.estimatedValueHigh ?? null,
-                  confidence:
-                    aiFallbackPriceEstimate?.valuationConfidence ??
-                    aiFallbackPriceEstimate?.confidence ??
-                    identification.pricingConfidence ??
-                    identification.valuationConfidence ??
-                    identification.confidence,
-                },
-                {
-                  firestoreEstimate: databasePriceEstimate,
-                  onProgress: (event) => {
-                    this.emitProgress(
-                      "pricing",
-                      "active",
-                      buildLookupProgress(event.sourceKey, event.message),
-                    );
-                  },
-                  onLog: (event) => {
-                    logBuilder.add(event.kind, event.title, event.message, {
-                      details: event.details,
-                    });
-                  },
-                },
-              ),
+              routedPriceResult,
               identification,
               databasePriceEstimate,
               aiFallbackPriceEstimate,
@@ -1587,7 +1739,8 @@ export class ScanPipeline {
     }
 
     try {
-      return await ensureAnonymousSession();
+      const user = await ensureAnonymousSession();
+      return user;
     } catch (error) {
       console.warn("[VaultScope] Proceeding without authenticated Firebase session.", error);
       return null;
@@ -1608,7 +1761,7 @@ export class ScanPipeline {
         () =>
           Promise.all(
             visionResults.map((result) =>
-              uploadScanImage(userId, `data:image/jpeg;base64,${result.base64}`),
+              uploadScanImage(userId, `data:image/jpeg;base64,${result.base64}`, result.optimizedUri),
             ),
           ),
         {
@@ -1628,13 +1781,6 @@ export class ScanPipeline {
   private async saveResultSafely(
     payload: Omit<ScanResult, "uploadedImageUrls" | "vision"> & { images: string[] },
   ): Promise<{ persisted: boolean; warning?: string | null }> {
-    if (!payload.userId || payload.userId === "anonymous-local") {
-      return {
-        persisted: false,
-        warning: "Cloud save was unavailable because Firebase anonymous auth did not complete. This scan and its log were kept on device only.",
-      };
-    }
-
     try {
       await performanceMonitor.measureAsync(
         "scan.save-result",
@@ -1649,6 +1795,16 @@ export class ScanPipeline {
       return { persisted: true };
     } catch (error) {
       console.warn("[VaultScope] Scan result save failed. Continuing with local result only.", error);
+      if (
+        payload.userId === "anonymous-local" &&
+        isFirebasePermissionError(error)
+      ) {
+        return {
+          persisted: false,
+          warning:
+            "Cloud save failed because Firebase Anonymous Auth is not enabled for this project. Enable Authentication > Sign-in method > Anonymous in Firebase Console to persist scans and logs.",
+        };
+      }
       return {
         persisted: false,
         warning: "Cloud save failed, so this scan and its log were kept on device only.",
@@ -1676,16 +1832,19 @@ export class ScanPipeline {
     errorSummary: string;
     failedStep: string;
   }): Promise<void> {
-    if (!payload.userId || payload.userId === "anonymous-local") {
-      return;
-    }
-
     try {
       await saveFailedScanLog(payload);
       performanceMonitor.trackFirestoreWrite(1, {
         area: "scan_results.failure_log",
       });
     } catch (error) {
+      if (payload.userId === "anonymous-local" && isFirebasePermissionError(error)) {
+        console.warn(
+          "[VaultScope] Failed analysis log could not be saved because Firebase Anonymous Auth is disabled.",
+          error,
+        );
+        return;
+      }
       console.warn("[VaultScope] Failed analysis log could not be saved.", error);
     }
   }

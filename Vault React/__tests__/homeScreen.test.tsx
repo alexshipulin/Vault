@@ -137,5 +137,6 @@ describe("HomeScreen", () => {
     expect(screen.queryByTestId("home.recentScanCell.scan-1")).toBeNull();
 
     expect(screen.getByText("file:///tmp/scan-4.jpg")).toBeTruthy();
+    expect(screen.getByText("$950 — $1,250")).toBeTruthy();
   });
 });

@@ -5,8 +5,8 @@ import type { ScanProgressState } from "@/lib/scan/types";
 import type { AnalysisService, AppReadinessService, RemoteSearchService } from "@src/domain/contracts";
 import type { AppReadinessCheck, AppReadinessReport, CollectibleItem, PriceSource, ScanResult, TemporaryScanSession } from "@src/domain/models";
 
-function requireLegacyFirebaseAuth(): { ensureAnonymousSession: () => Promise<{ uid: string }> } {
-  return require("@/lib/firebase/auth") as { ensureAnonymousSession: () => Promise<{ uid: string }> };
+function requireLegacyFirebaseAuth(): { ensureAnonymousSession: () => Promise<{ uid: string } | null> } {
+  return require("@/lib/firebase/auth") as { ensureAnonymousSession: () => Promise<{ uid: string } | null> };
 }
 
 function requireLegacyFirestore(): {
@@ -118,7 +118,7 @@ function requireLegacyScanPipeline(): {
         low?: number | null;
         high?: number | null;
         currency: string;
-        source?: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "metals";
+        source?: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "ebay" | "metals";
         sourceLabel?: string | null;
         confidence?: number;
         valuationConfidence?: number;
@@ -182,7 +182,7 @@ function requireLegacyScanPipeline(): {
           low?: number | null;
           high?: number | null;
           currency: string;
-          source?: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "metals";
+          source?: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "ebay" | "metals";
           sourceLabel?: string | null;
           confidence?: number;
           valuationConfidence?: number;
@@ -214,7 +214,16 @@ function requireLegacyGeminiClient(): {
 }
 
 function requireLegacyPricingClients(): {
-  pcgsClient: { lookupCoin: (params: { year: number; denomination: string; mintMark?: string }) => Promise<unknown> };
+  pcgsClient: {
+    lookupCoin: (params: {
+      certNo?: string;
+      barcode?: string;
+      gradingService?: "PCGS" | "NGC";
+      pcgsNo?: string | number;
+      gradeNo?: number;
+      plusGrade?: boolean;
+    }) => Promise<unknown>;
+  };
   discogsClient: {
     lookupVinyl: (identification: {
       category: string;
@@ -230,7 +239,16 @@ function requireLegacyPricingClients(): {
 } {
   return {
     ...(require("@/src/services/pricing/PCGSClient") as {
-      pcgsClient: { lookupCoin: (params: { year: number; denomination: string; mintMark?: string }) => Promise<unknown> };
+      pcgsClient: {
+        lookupCoin: (params: {
+          certNo?: string;
+          barcode?: string;
+          gradingService?: "PCGS" | "NGC";
+          pcgsNo?: string | number;
+          gradeNo?: number;
+          plusGrade?: boolean;
+        }) => Promise<unknown>;
+      };
     }),
     ...(require("@/src/services/pricing/DiscogsClient") as {
       discogsClient: {
@@ -248,6 +266,28 @@ function requireLegacyPricingClients(): {
     ...(require("@/src/services/pricing/MetalsClient") as {
       metalsClient: { getSpotPrices: () => Promise<unknown> };
     }),
+  };
+}
+
+function requireLegacyEBayClient(): {
+  getEBayClient: (clientId: string, clientSecret: string, campaignId?: string) => {
+    searchItems: (params: { keywords: string; category?: string; limit?: number }) => Promise<unknown[]>;
+    consumeLastFailureReason?: () => string | null;
+  };
+  ebayClient: {
+    searchItems: (params: { keywords: string; category?: string; limit?: number }) => Promise<unknown[]>;
+    consumeLastFailureReason?: () => string | null;
+  } | null;
+} {
+  return require("@/src/services/pricing/EBayClient") as {
+    getEBayClient: (clientId: string, clientSecret: string, campaignId?: string) => {
+      searchItems: (params: { keywords: string; category?: string; limit?: number }) => Promise<unknown[]>;
+      consumeLastFailureReason?: () => string | null;
+    };
+    ebayClient: {
+      searchItems: (params: { keywords: string; category?: string; limit?: number }) => Promise<unknown[]>;
+      consumeLastFailureReason?: () => string | null;
+    } | null;
   };
 }
 
@@ -301,7 +341,7 @@ function mapRemoteCategory(input: string | null | undefined): ScanResult["catego
 }
 
 function mapRemotePriceSource(
-  remoteSource: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "metals" | undefined,
+  remoteSource: "database" | "ai_estimate" | "aiFallback" | "pcgs" | "discogs" | "ebay" | "metals" | undefined,
   comparableSource: string | null | undefined,
 ): PriceSource {
   if (remoteSource === "metals") {
@@ -314,6 +354,10 @@ function mapRemotePriceSource(
 
   if (remoteSource === "discogs") {
     return "discogs";
+  }
+
+  if (remoteSource === "ebay") {
+    return "ebay";
   }
 
   if (remoteSource === "ai_estimate" || remoteSource === "aiFallback") {
@@ -436,7 +480,10 @@ export class LegacyRemoteSearchService implements RemoteSearchService {
     try {
       const { ensureAnonymousSession } = requireLegacyFirebaseAuth();
       const { AntiqueSearchEngine } = requireLegacySearch();
-      await ensureAnonymousSession();
+      const user = await ensureAnonymousSession();
+      if (!user) {
+        return false;
+      }
       const engine = new AntiqueSearchEngine();
       const results = await engine.getTopDeals(undefined, 1);
       return Array.isArray(results);
@@ -456,6 +503,9 @@ export class LegacyRemoteCollectionMirrorService {
       const { ensureAnonymousSession } = requireLegacyFirebaseAuth();
       const { addToCollection } = requireLegacyFirestore();
       const user = await ensureAnonymousSession();
+      if (!user) {
+        return false;
+      }
       await addToCollection(user.uid, {
         scanResultId: item.id,
         title: item.name,
@@ -551,22 +601,27 @@ export class LegacyReadinessService implements AppReadinessService {
 
     const { pcgsClient, discogsClient, metalsClient } = requireLegacyPricingClients();
 
-    if (!AppConfig.pcgs.username || !AppConfig.pcgs.password) {
-      addCheck("pcgs", "PCGS", "missing", "PCGS credentials are missing.");
+    const hasPcgsAuth = Boolean(
+      AppConfig.pcgs.apiKey ||
+        (AppConfig.pcgs.email && AppConfig.pcgs.password) ||
+        (AppConfig.pcgs.username && AppConfig.pcgs.password),
+    );
+    if (!hasPcgsAuth) {
+      addCheck("pcgs", "PCGS", "missing", "PCGS API key is missing.");
     } else {
       try {
         const pcgsProbe = await pcgsClient.lookupCoin({
-          year: 1921,
-          denomination: "Morgan Dollar",
-          mintMark: "S",
+          pcgsNo: "7296",
+          gradeNo: 12,
+          plusGrade: false,
         });
         addCheck(
           "pcgs",
           "PCGS",
           pcgsProbe ? "verified" : "failed",
           pcgsProbe
-            ? "PCGS returned a live sample coin match."
-            : "PCGS is configured, but the current live endpoint did not return a sample coin match.",
+            ? "PCGS bearer auth succeeded and returned a live grade probe."
+            : "PCGS auth is configured, but the live grade probe did not return a coin match.",
         );
       } catch (error) {
         addCheck("pcgs", "PCGS", "failed", `PCGS live probe failed: ${formatError(error)}`);
@@ -617,6 +672,45 @@ export class LegacyReadinessService implements AppReadinessService {
       }
     }
 
+    if (!AppConfig.ebay.clientId || !AppConfig.ebay.clientSecret) {
+      addCheck("ebay", "eBay", "missing", "eBay client credentials are missing.");
+    } else {
+      try {
+        const { getEBayClient, ebayClient } = requireLegacyEBayClient();
+        const client =
+          ebayClient ??
+          getEBayClient(
+            AppConfig.ebay.clientId,
+            AppConfig.ebay.clientSecret,
+            AppConfig.ebay.campaignId,
+          );
+        const listings = await client.searchItems({
+          keywords: "dragon carving box",
+          category: "antique",
+          limit: 3,
+        });
+        const failureReason = client.consumeLastFailureReason?.();
+        if (failureReason) {
+          const normalizedReason = failureReason.toLowerCase();
+          const remediation = normalizedReason.includes("invalid_client")
+            ? " Verify that EBAY_CLIENT_ID and EBAY_CLIENT_SECRET are active production credentials for the same eBay app."
+            : "";
+          addCheck("ebay", "eBay", "failed", `eBay live probe failed: ${failureReason}.${remediation}`);
+        } else {
+          addCheck(
+            "ebay",
+            "eBay",
+            "verified",
+            listings.length > 0
+              ? `eBay browse lookup returned ${listings.length} listing(s).`
+              : "eBay browse lookup completed successfully (0 listings for probe query).",
+          );
+        }
+      } catch (error) {
+        addCheck("ebay", "eBay", "failed", `eBay live probe failed: ${formatError(error)}`);
+      }
+    }
+
     if (!firebaseConfigured || !projectReady) {
       addCheck(
         "persistence",
@@ -629,6 +723,25 @@ export class LegacyReadinessService implements AppReadinessService {
         const { ensureAnonymousSession } = requireLegacyFirebaseAuth();
         const { getScanResult, saveFailedScanLog } = requireLegacyFirestoreDebug();
         const user = await ensureAnonymousSession();
+        if (!user) {
+          addCheck(
+            "persistence",
+            "Firebase save/logs",
+            "failed",
+            "Firebase anonymous auth is unavailable for the configured project.",
+          );
+          return {
+            firebaseConfigured,
+            firebaseProjectReady: projectReady,
+            functionsConfigured: projectReady,
+            searchIndexReady,
+            geminiConfigured,
+            remoteAnalysisReady: geminiVerified && searchIndexReady,
+            verifiedAt,
+            checks,
+            messages: checks.map((check) => `${check.label}: ${check.message}`),
+          };
+        }
         const probeId = `probe-${Date.now()}`;
         const scannedAt = new Date().toISOString();
         const analysisLog: AnalysisLogDocument = {

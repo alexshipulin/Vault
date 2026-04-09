@@ -9,11 +9,15 @@ type ExtraConfig = {
   firebaseMessagingSenderId?: string;
   geminiApiKey?: string;
   geminiModel?: string;
+  pcgsApiKey?: string;
   pcgsUsername?: string;
   pcgsEmail?: string;
   pcgsPassword?: string;
   metalsApiKey?: string;
   discogsToken?: string;
+  ebayClientId?: string;
+  ebayClientSecret?: string;
+  ebayCampaignId?: string;
   vaultEnvironment?: string;
   vaultSeedData?: string;
   vaultFastProcessing?: string;
@@ -54,7 +58,13 @@ export const AppConfig = {
   geminiModel: optionalEnv(getExtraConfig().geminiModel),
   metalsApiKey: optionalEnv(getExtraConfig().metalsApiKey),
   discogsToken: optionalEnv(getExtraConfig().discogsToken),
+  ebay: {
+    clientId: optionalEnv(getExtraConfig().ebayClientId),
+    clientSecret: optionalEnv(getExtraConfig().ebayClientSecret),
+    campaignId: optionalEnv(getExtraConfig().ebayCampaignId)
+  },
   pcgs: {
+    apiKey: optionalEnv(getExtraConfig().pcgsApiKey),
     username: optionalEnv(getExtraConfig().pcgsUsername),
     email: optionalEnv(getExtraConfig().pcgsEmail),
     password: optionalEnv(getExtraConfig().pcgsPassword),
@@ -84,6 +94,8 @@ export function getRemoteReadinessStatus(): {
   if (!AppConfig.firebase.appId) missing.push("Firebase App ID");
   if (!AppConfig.firebase.messagingSenderId) missing.push("Firebase Messaging Sender ID");
   if (!AppConfig.geminiApiKey) missing.push("Gemini API Key");
+  if (!AppConfig.ebay.clientId) missing.push("eBay Client ID");
+  if (!AppConfig.ebay.clientSecret) missing.push("eBay Client Secret");
 
   return {
     isReady: missing.length === 0,

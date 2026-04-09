@@ -3,9 +3,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppConfig } from "@/constants/Config";
 import type { GeminiIdentifyResponse } from "@/lib/gemini/types";
 
-const METALS_API_BASES = ["https://metals-api.com/api", "https://api.metals-api.com/api"] as const;
+const METALS_API_BASE = "https://api.metalpriceapi.com/v1";
 const METALS_CACHE_KEY = "metals_spot_prices";
 const METALS_CACHE_TTL_MS = 60 * 60 * 1000;
+const METALS_REQUEST_TIMEOUT_MS = 7_000;
 
 export interface SpotPrices {
   XAU: number;
@@ -39,8 +40,12 @@ type BullionWeight = {
 type MetalsApiResponse = {
   success?: boolean;
   rates?: Record<string, number>;
-  fetchedAt?: string;
   timestamp?: number;
+  date?: string;
+  error?: {
+    code?: string;
+    message?: string;
+  };
 };
 
 const BULLION_COIN_WEIGHTS: Record<string, BullionWeight> = {
@@ -73,18 +78,33 @@ function roundCurrency(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function normalizeSpotRate(rate: unknown): number | null {
-  if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
+function normalizePositiveNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     return null;
   }
 
-  // Metals API documents latest with `base=USD`, which means rates are metal-per-USD.
-  // For pricing we need USD-per-ounce, so values under 1 should be inverted.
-  return rate < 1 ? roundCurrency(1 / rate) : roundCurrency(rate);
+  return value;
 }
 
-function resolveSpotPrice(symbol: keyof Omit<SpotPrices, "fetchedAt">, rates: Record<string, number> | undefined): number | null {
-  return normalizeSpotRate(rates?.[symbol]);
+function resolveUsdMetalRate(
+  symbol: keyof Omit<SpotPrices, "fetchedAt">,
+  rates?: Record<string, number>,
+): number | null {
+  if (!rates) {
+    return null;
+  }
+
+  const direct = normalizePositiveNumber(rates[`USD${symbol}`]);
+  if (direct != null) {
+    return roundCurrency(direct);
+  }
+
+  const inverse = normalizePositiveNumber(rates[symbol]);
+  if (inverse != null) {
+    return roundCurrency(1 / inverse);
+  }
+
+  return null;
 }
 
 function buildCachePayload(value: SpotPrices): CachedSpotPrices {
@@ -147,6 +167,29 @@ function symbolForMetal(metal: BullionMetal): keyof Omit<SpotPrices, "fetchedAt"
 }
 
 export class MetalsClient {
+  private async fetchWithTimeout(url: string): Promise<Response> {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeoutId = setTimeout(() => {
+      controller?.abort();
+    }, METALS_REQUEST_TIMEOUT_MS);
+
+    try {
+      return await fetch(url, {
+        headers: {
+          Accept: "application/json",
+        },
+        signal: controller?.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`Metals API request timed out after ${METALS_REQUEST_TIMEOUT_MS}ms.`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   async getSpotPrices(): Promise<SpotPrices> {
     const cached = await readCachedSpotPrices();
     if (cached) {
@@ -158,55 +201,49 @@ export class MetalsClient {
       throw new Error("Metals API key is not configured.");
     }
 
-    let lastError: Error | null = null;
+    const query = new URLSearchParams({
+      api_key: apiKey,
+      base: "USD",
+      currencies: "EUR,XAU,XAG,XPT,XPD",
+    });
 
-    for (const baseUrl of METALS_API_BASES) {
-      try {
-        const query = new URLSearchParams({
-          access_key: apiKey,
-          base: "USD",
-          symbols: "XAU,XAG,XPT,XPD",
-        });
-        const response = await fetch(`${baseUrl}/latest?${query.toString()}`, {
-          headers: {
-            Accept: "application/json",
-          },
-        });
+    const response = await this.fetchWithTimeout(`${METALS_API_BASE}/latest?${query.toString()}`);
 
-        if (!response.ok) {
-          throw new Error(`Metals API request failed (${response.status}).`);
-        }
-
-        const payload = (await response.json()) as MetalsApiResponse;
-        const XAU = resolveSpotPrice("XAU", payload.rates);
-        const XAG = resolveSpotPrice("XAG", payload.rates);
-        const XPT = resolveSpotPrice("XPT", payload.rates);
-        const XPD = resolveSpotPrice("XPD", payload.rates);
-
-        if (XAU == null || XAG == null || XPT == null || XPD == null) {
-          throw new Error("Metals API response is missing one or more spot rates.");
-        }
-
-        const spotPrices: SpotPrices = {
-          XAU,
-          XAG,
-          XPT,
-          XPD,
-          fetchedAt:
-            payload.fetchedAt ??
-            (typeof payload.timestamp === "number"
-              ? new Date(payload.timestamp * 1000).toISOString()
-              : new Date().toISOString()),
-        };
-
-        await writeCachedSpotPrices(spotPrices);
-        return spotPrices;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error("Unknown Metals API failure.");
-      }
+    if (!response.ok) {
+      throw new Error(`Metals API request failed (${response.status}).`);
     }
 
-    throw lastError ?? new Error("Unable to fetch metal spot prices.");
+    const payload = (await response.json()) as MetalsApiResponse;
+
+    if (payload.success === false) {
+      const message = payload.error?.message ?? payload.error?.code ?? "unknown provider error";
+      throw new Error(`Metals API responded with success=false: ${message}`);
+    }
+
+    const XAU = resolveUsdMetalRate("XAU", payload.rates);
+    const XAG = resolveUsdMetalRate("XAG", payload.rates);
+    const XPT = resolveUsdMetalRate("XPT", payload.rates);
+    const XPD = resolveUsdMetalRate("XPD", payload.rates);
+
+    if (XAU == null || XAG == null || XPT == null || XPD == null) {
+      throw new Error("Metals API response is missing one or more spot rates.");
+    }
+
+    const spotPrices: SpotPrices = {
+      XAU,
+      XAG,
+      XPT,
+      XPD,
+      fetchedAt:
+        typeof payload.timestamp === "number"
+          ? new Date(payload.timestamp * 1000).toISOString()
+          : payload.date
+            ? `${payload.date}T00:00:00.000Z`
+            : new Date().toISOString(),
+    };
+
+    await writeCachedSpotPrices(spotPrices);
+    return spotPrices;
   }
 
   async estimateBullionValue(identification: GeminiIdentifyResponse): Promise<BullionEstimate | null> {
@@ -226,6 +263,7 @@ export class MetalsClient {
       console.warn("[Metals] Spot price lookup failed. Skipping bullion pricing.", error);
       return null;
     }
+
     const symbol = symbolForMetal(match.metal);
     const spotPrice = spotPrices[symbol];
     const spotValue = roundCurrency(spotPrice * match.troyOz);

@@ -142,8 +142,8 @@ export function HomeScreen() {
                     setSelectedItem(item);
                     setSelectedItemID(item.id);
                     router.push({
-                      pathname: "/item/[itemId]",
-                      params: { itemId: item.id, source: "home" }
+                      pathname: "/result/[resultId]",
+                      params: { resultId: item.id, source: "home" }
                     });
                   }}
                   testID={`home.recentScanCell.${item.id}`}
@@ -232,23 +232,11 @@ function HomeRecentRow({
 }
 
 function mapHomeRecentItemFromItem(item: Parameters<typeof collectibleListItemFromItem>[0], currency: PreferredCurrency) {
-  const listItem = collectibleListItemFromItem(item, currency);
-  const compactValue = item.priceMid ?? item.priceHigh ?? item.priceLow ?? null;
-
-  return {
-    ...listItem,
-    valueText: typeof compactValue === "number" ? formatCurrency(compactValue, currency) : listItem.valueText
-  };
+  return collectibleListItemFromItem(item, currency);
 }
 
 function mapHomeRecentItemFromResult(result: ScanResult, currency: PreferredCurrency) {
-  const listItem = collectibleListItemFromResult(result, currency);
-  const compactValue = result.priceData?.mid ?? result.priceData?.high ?? result.priceData?.low ?? null;
-
-  return {
-    ...listItem,
-    valueText: typeof compactValue === "number" ? formatCurrency(compactValue, currency) : listItem.valueText
-  };
+  return collectibleListItemFromResult(result, currency);
 }
 
 const styles = StyleSheet.create({

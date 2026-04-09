@@ -498,11 +498,13 @@ function getRetryDelay(attempt: number): number {
 }
 
 function normalizeIdentifyModelCandidate(candidate: string): string {
-  if (candidate === "gemini-2.0-flash" || candidate === "gemini-2.0-flash-exp") {
+  const normalized = candidate.trim().replace(/^models\//i, "");
+
+  if (normalized === "gemini-2.0-flash" || normalized === "gemini-2.0-flash-exp") {
     return "gemini-2.5-flash-lite";
   }
 
-  return candidate;
+  return normalized;
 }
 
 function buildIdentifyModelCandidates(candidates: readonly string[] = []): string[] {

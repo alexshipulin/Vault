@@ -34,6 +34,7 @@ export type ScanLookupSourceKey =
   | "auction_records"
   | "pcgs"
   | "discogs"
+  | "ebay"
   | "metals"
   | "final_estimate"
   | "saving";
